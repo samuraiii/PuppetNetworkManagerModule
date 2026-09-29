@@ -23,7 +23,7 @@
 
 ## Disclaimer
 
-This repository is the continuation of [jednoprsak/PuppetNetworkManagerModule](https://github.com/jednoprsak/PuppetNetworkManagerModule), which is not developed any more (v1.1.0 was the last release published there). The development, the releases, the issues and the pull requests are here.
+This repository is the continuation of [jednoprsak/PuppetNetworkManagerModule](https://github.com/jednoprsak/PuppetNetworkManagerModule), which is not developed any more (v1.1.0 was the last release published there). The development, the releases, the issues and the pull requests are here. The name of the module (eg. for a `Puppetfile`) is `samuraiii-networkmanager` since 1.1.1, it was `jednoprsak-networkmanager`.
 
 This is a FOSS project, the work on it is done either in free time or as a part of a daily job which is not focused on developing this code. The issues will be fixed as soon as time allows, it can take more time than you would expect. The code is still actively used on 300+ machines, so any problems found are fixed and will eventually be shared here. If you have a problem please create an issue, or a pull request if you can.
 Writing e-mails to the authors won't help.

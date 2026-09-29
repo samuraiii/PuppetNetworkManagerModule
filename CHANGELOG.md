@@ -3,6 +3,7 @@
 * Maintenance:
     - the development continues in https://github.com/samuraiii/PuppetNetworkManagerModule, the `source`, `project_page` and `issues_url` of `metadata.json` and the README point to it (jednoprsak/PuppetNetworkManagerModule is not developed any more, v1.1.0 was the last release published there)
     - the README has the Disclaimer section and the link to the issues added in the original repository (typos fixed)
+    - the name of the module in `metadata.json` (the Forge name) is `samuraiii-networkmanager`, it was `jednoprsak-networkmanager`; change the name in your `Puppetfile` or `metadata.json` dependencies, the classes and defined types keep the `networkmanager` namespace
     - no change of the code, the module works as 1.1.0
 
 ## 1.0.0-rc1 -> 1.1.0

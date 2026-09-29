@@ -1,5 +1,5 @@
 {
-  "name": "jednoprsak-networkmanager",
+  "name": "samuraiii-networkmanager",
   "version": "1.1.1",
   "author": "Lukáš Míča, samuraiii",
   "summary": "Puppet module which installs, configures, and controls NetworkManager",
