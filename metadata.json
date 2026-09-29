@@ -4,9 +4,9 @@
   "author": "Lukáš Míča, samuraiii",
   "summary": "Puppet module which installs, configures, and controls NetworkManager",
   "license": "MIT",
-  "source": "https://github.com/jednoprsak/PuppetNetworkManagerModule",
-  "project_page": "https://github.com/jednoprsak/PuppetNetworkManagerModule",
-  "issues_url": "https://github.com/jednoprsak/PuppetNetworkManagerModule/issues",
+  "source": "https://github.com/samuraiii/PuppetNetworkManagerModule",
+  "project_page": "https://github.com/samuraiii/PuppetNetworkManagerModule",
+  "issues_url": "https://github.com/samuraiii/PuppetNetworkManagerModule/issues",
   "dependencies": [
     {
       "name": "puppetlabs/stdlib",

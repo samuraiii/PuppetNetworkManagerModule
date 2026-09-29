@@ -1,4 +1,8 @@
 # CHANGELOG
+## Unreleased
+* Maintenance:
+    - the development continues in https://github.com/samuraiii/PuppetNetworkManagerModule, the `source`, `project_page` and `issues_url` of `metadata.json` and the README point to it (jednoprsak/PuppetNetworkManagerModule is not developed any more, v1.1.0 was the last release published there)
+
 ## 1.0.0-rc1 -> 1.1.0
 * Behaviour changes to check when upgrading:
     - the values are validated more strictly: the `Networkmanager::DNS_IPV4`, `DNS_IPV6` and `IPV4_CIDR` types used unanchored patterns and accepted almost any string, they now validate the whole value; `$ipv6_dhcp_duid` of `connection` (any string before) is validated by the new `Networkmanager::DHCP_DUID` type as it is in `bond` and `bridge`; a malformed value which used to slip through now fails to compile
