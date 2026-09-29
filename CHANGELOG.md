@@ -1,7 +1,9 @@
 # CHANGELOG
-## Unreleased
+## 1.1.0 -> 1.1.1
 * Maintenance:
     - the development continues in https://github.com/samuraiii/PuppetNetworkManagerModule, the `source`, `project_page` and `issues_url` of `metadata.json` and the README point to it (jednoprsak/PuppetNetworkManagerModule is not developed any more, v1.1.0 was the last release published there)
+    - the README has the Disclaimer section and the link to the issues added in the original repository (typos fixed)
+    - no change of the code, the module works as 1.1.0
 
 ## 1.0.0-rc1 -> 1.1.0
 * Behaviour changes to check when upgrading:
