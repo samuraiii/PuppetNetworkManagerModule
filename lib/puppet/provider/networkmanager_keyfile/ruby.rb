@@ -151,7 +151,7 @@ Puppet::Type.type(:networkmanager_keyfile).provide(:ruby) do
     when nil
       ''
     when Array
-      items = value.map { |item| escape(item.to_s).gsub(';') { '\;' } }
+      items = value.map { |item| escape(item.to_s, list: true) }
       items.empty? ? '' : "#{items.join(';')};"
     when Hash
       raise Puppet::Error, "#{path}: a hash can not be a value of a keyfile setting"
@@ -160,9 +160,15 @@ Puppet::Type.type(:networkmanager_keyfile).provide(:ruby) do
     end
   end
 
-  def escape(string)
-    string.gsub('\\') { '\\\\' }.gsub("\n") { '\\n' }.gsub("\t") { '\\t' }.gsub("\r") { '\\r' }
-          .sub(%r{\A }) { '\\s' }.sub(%r{ \z}) { '\\s' }
+  # the characters escaped in a value, in a list item also the separator; everything (the backslash too)
+  # is replaced in one pass, so a replacement is never escaped again
+  def self.escapes
+    { '\\' => '\\\\', "\n" => '\\n', "\t" => '\\t', "\r" => '\\r' }
+  end
+
+  def escape(string, list: false)
+    escapes = list ? self.class.escapes.merge(';' => '\\;') : self.class.escapes
+    string.gsub(Regexp.union(escapes.keys), escapes).sub(%r{\A }) { '\\s' }.sub(%r{ \z}) { '\\s' }
   end
 
   # ----- the file attributes
