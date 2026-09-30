@@ -23,7 +23,7 @@ class networkmanager::config (
   Variant[Boolean,String]               $no_auto_default = $networkmanager::no_auto_default,
   Array[String]                         $unmanaged_devices = $networkmanager::unmanaged_devices,
   Array[String]                         $plugins = $networkmanager::plugins,
-  Variant[Boolean, Enum['stub'], Undef] $use_internal_resolv_conf = $networkmanager::use_internal_resolv_conf,
+  Optional[Variant[Boolean, Enum['stub']]] $use_internal_resolv_conf = $networkmanager::use_internal_resolv_conf,
   Hash                                  $additional_config = $networkmanager::additional_config,
 ) {
   $main_conf_file = '/etc/NetworkManager/NetworkManager.conf'

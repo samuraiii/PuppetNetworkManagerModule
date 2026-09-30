@@ -4,7 +4,15 @@ RSpec.configure do |c|
   c.mock_with :rspec
 end
 
-require 'puppetlabs_spec_helper/module_spec_helper'
+begin
+  require 'puppetlabs_spec_helper/module_spec_helper'
+rescue LoadError
+  # without puppetlabs_spec_helper (OpenVox 8.24 and newer, 9): the fixtures are prepared by rake spec_prep
+  require 'rspec-puppet'
+  RSpec.configure do |c|
+    c.module_path = File.expand_path('fixtures/modules', __dir__)
+  end
+end
 require 'rspec-puppet-facts'
 
 require 'spec_helper_local' if File.file?(File.join(File.dirname(__FILE__), 'spec_helper_local.rb'))

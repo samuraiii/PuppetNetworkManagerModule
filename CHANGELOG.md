@@ -13,6 +13,9 @@
 
 ## 1.1.0 -> 1.1.1
 * Maintenance:
+    - OpenVox 9 (tested with the release candidates 9.0.0-rc1 to rc4 of the gem, the version `openvox-server` 9.0.0-rc1 needs at least) and OpenVox 8.24 and newer are tested in the CI without `puppetlabs_spec_helper` and `puppet-syntax` (they depend on the `puppet` gem and cap OpenVox, so the bundler used to fall back to OpenVox 8.19 for the "OpenVox 8" job): the `Gemfile` chooses the gems by the version in `OPENVOX_GEM_VERSION`, the `Rakefile` has a `spec_prep` task for the fixtures and `spec/spec_helper.rb` configures `rspec-puppet` itself; the OpenVox 9 job is experimental until the final release, the `openvox` requirement of `metadata.json` stays `< 9.0.0` until then
+    - `$use_internal_resolv_conf` is typed `Optional[Variant[Boolean, Enum['stub']]]` (it was `Variant[Boolean, Enum['stub'], Undef]`, the same type) as the newer `puppet-lint` wants
+    - the tag of the exported activation execs is the variable `$networkmanager::activation_tag` (not a parameter), the value is the same as before
     - the development continues in https://github.com/samuraiii/PuppetNetworkManagerModule, the `source`, `project_page` and `issues_url` of `metadata.json` and the README point to it (jednoprsak/PuppetNetworkManagerModule is not developed any more, v1.1.0 was the last release published there)
     - the README has the Disclaimer section and the link to the issues added in the original repository (typos fixed)
     - the name of the module in `metadata.json` (the Forge name) is `samuraiii-networkmanager`, it was `jednoprsak-networkmanager`; change the name in your `Puppetfile` or `metadata.json` dependencies, the classes and defined types keep the `networkmanager` namespace

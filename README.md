@@ -183,6 +183,15 @@ bundle exec rake spec
 ```
 
 `PUPPET_GEM_VERSION` (eg. `'~> 7.0'`) or `OPENVOX_GEM_VERSION` selects the version of Puppet or OpenVox for the `bundle install`, the version of `stdlib` is the one you clone into `spec/fixtures/modules/stdlib`.
+
+OpenVox 8.24 and newer (including 9) do not work with `puppetlabs_spec_helper` and `puppet-syntax` (they depend on the `puppet` gem), so the `Gemfile` leaves them out when `OPENVOX_GEM_VERSION` is `8.x` or `9.x` and `rspec-puppet` is used directly:
+
+```sh
+OPENVOX_GEM_VERSION='>= 9.0.0.pre.alpha' bundle install   # or '~> 8.0'
+bundle exec rake spec_prep                                  # clones the fixtures and links the module
+bundle exec rspec spec/classes spec/defines spec/functions spec/type_aliases spec/unit
+bundle exec puppet-lint --no-140chars-check --no-documentation-check manifests functions types
+```
 The specs generate the facts of every operating system release listed in `operatingsystem_support` of `metadata.json` (`spec/spec_helper_local.rb`), so a release added there is tested automatically.
 
 ## Use of AI tools

@@ -49,7 +49,7 @@ class networkmanager (
   Optional[String]                      $version = undef,
   Array[String]                         $unmanaged_devices = [],
   Boolean                               $wait_online = true,
-  Variant[Boolean, Enum['stub'], Undef] $use_internal_resolv_conf = undef,
+  Optional[Variant[Boolean, Enum['stub']]] $use_internal_resolv_conf = undef,
   Array[String]                         $plugins = ['keyfile'],
   Integer[3]                            $max_length_of_connection_id = 15,
   Pattern[/^\h{2}(:\h{2}){3}$/]         $duid_prefix = '00:03:00:01',
@@ -62,9 +62,11 @@ class networkmanager (
     $trusted['certname'],
     $facts['certname'],
     $facts['clientcert'],
-    $facts['networking']['hostname'],
+    $facts['networking']['fqdn'],
   ].filter |$hn| { $hn =~ String[1] }[0]
   $duid_prefix_d = $duid_prefix.downcase
+  # the tag of the exported activation execs of this node, they are collected by networkmanager::reload
+  $activation_tag = "nmactivate-2022b07${sys_id}"
   include networkmanager::os
 
   include networkmanager::install
