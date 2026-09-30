@@ -1,0 +1,130 @@
+---
+name: Release
+
+# Publishes a new version to the Puppet Forge and to the GitHub releases when a tag vX.Y.Z is pushed.
+# See the "Releasing" section of CONTRIBUTING.md.
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      checks: read
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      tarball: ${{ steps.meta.outputs.tarball }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Verify the tag
+        id: meta
+        env:
+          TAG: ${{ github.ref_name }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ! [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?$ ]]; then
+            echo "::error::The tag '${TAG}' is not a version tag (vX.Y.Z or vX.Y.Z-rc1)"
+            exit 1
+          fi
+          name="$(jq -r .name metadata.json)"
+          version="$(jq -r .version metadata.json)"
+          if [[ "v${version}" != "${TAG}" ]]; then
+            echo "::error::The tag '${TAG}' does not match the version '${version}' in metadata.json"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "${GITHUB_SHA}" origin/main; then
+            echo "::error::The tagged commit is not on the main branch"
+            exit 1
+          fi
+          ci_ok="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs?per_page=100" \
+            --jq '[.check_runs[] | select(.name == "Static checks" or (.name | startswith("Spec ")))] | (length > 0) and all(.conclusion == "success")')"
+          if [[ "true" != "${ci_ok}" ]]; then
+            echo "::error::The CI checks did not pass (or did not finish) for the tagged commit ${GITHUB_SHA}"
+            exit 1
+          fi
+          awk -v v="${version}" '
+            /^## / { n = length(" -> " v); p = (length($0) >= n && substr($0, length($0) - n + 1) == " -> " v); next }
+            p
+          ' CHANGELOG.md > notes.md
+          if [[ ! -s notes.md ]]; then
+            echo "::error::CHANGELOG.md has no '## <previous> -> ${version}' section with the changes"
+            exit 1
+          fi
+          {
+            echo "version=${version}"
+            echo "tarball=${name}-${version}.tar.gz"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Build the tarball
+        env:
+          TARBALL: ${{ steps.meta.outputs.tarball }}
+        run: |
+          dir="${TARBALL%.tar.gz}"
+          mkdir pkg
+          # the files which are not for the Forge are listed as export-ignore in .gitattributes
+          git archive --format=tar.gz --prefix="${dir}/" -o "pkg/${TARBALL}" "${GITHUB_SHA}"
+          tar -tzf "pkg/${TARBALL}"
+          tar -tzf "pkg/${TARBALL}" | grep -qx "${dir}/metadata.json"
+          if tar -tzf "pkg/${TARBALL}" | grep -qE "^${dir}/(spec|\.github)/"; then
+            echo "::error::The tarball contains files which are not for the Forge"
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release
+          path: |
+            pkg/*.tar.gz
+            notes.md
+          if-no-files-found: error
+
+  publish:
+    name: Publish
+    needs: build
+    runs-on: ubuntu-22.04
+    # only tags are allowed to use this environment and its secret, see the environment settings
+    environment:
+      name: forge
+      url: https://forge.puppet.com/modules/samuraiii/networkmanager/${{ needs.build.outputs.version }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release
+
+      - name: Publish to the Puppet Forge
+        env:
+          FORGE_API_KEY: ${{ secrets.PUPPET_FORGE_API_KEY }}
+          TARBALL: ${{ needs.build.outputs.tarball }}
+        run: |
+          # the key goes to curl through stdin, so it is not on the command line
+          printf 'header = "Authorization: Bearer %s"\n' "${FORGE_API_KEY}" | curl --fail-with-body --silent --show-error \
+            --config - --request POST --form "file=@pkg/${TARBALL}" https://forgeapi.puppet.com/v3/releases
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          TARBALL: ${{ needs.build.outputs.tarball }}
+        run: |
+          prerelease=()
+          if [[ "${TAG}" == *-* ]]; then
+            prerelease=(--prerelease)
+          fi
+          gh release create "${TAG}" "pkg/${TARBALL}" --repo "${GITHUB_REPOSITORY}" --verify-tag \
+            --title "${TAG}" --notes-file notes.md "${prerelease[@]}"

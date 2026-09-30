@@ -3,3 +3,16 @@
 *.pp eol=lf
 *.sh eol=lf
 *.epp eol=lf
+
+# not packaged in the release tarball for the Forge (git archive)
+/.github export-ignore
+/spec export-ignore
+/.fixtures.yml export-ignore
+/.gitattributes export-ignore
+/.gitignore export-ignore
+/.puppet-lint.rc export-ignore
+/.rspec export-ignore
+/Gemfile export-ignore
+/Rakefile export-ignore
+/CONTRIBUTING.md export-ignore
+/SECURITY.md export-ignore
