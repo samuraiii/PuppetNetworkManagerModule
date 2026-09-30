@@ -66,4 +66,4 @@ jobs:
         if: ${{ matrix.plain }}
         run: |
           bundle exec rake spec_prep
-          bundle exec rspec spec/classes spec/defines spec/functions spec/hosts spec/type_aliases spec/unit
+          bundle exec rspec $(ls -d spec/classes spec/defines spec/functions spec/hosts spec/type_aliases spec/types spec/unit 2>/dev/null)

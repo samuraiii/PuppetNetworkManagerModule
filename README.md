@@ -189,7 +189,7 @@ OpenVox 8.24 and newer (including 9) do not work with `puppetlabs_spec_helper` a
 ```sh
 OPENVOX_GEM_VERSION='>= 9.0.0.pre.alpha' bundle install   # or '~> 8.0'
 bundle exec rake spec_prep                                  # clones the fixtures and links the module
-bundle exec rspec spec/classes spec/defines spec/functions spec/hosts spec/type_aliases spec/unit
+bundle exec rspec spec/classes spec/defines spec/functions spec/type_aliases spec/unit
 bundle exec puppet-lint --no-140chars-check --no-documentation-check manifests functions types
 ```
 The specs generate the facts of every operating system release listed in `operatingsystem_support` of `metadata.json` (`spec/spec_helper_local.rb`), so a release added there is tested automatically.
