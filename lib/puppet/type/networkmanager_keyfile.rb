@@ -1,3 +1,4 @@
+require 'puppet/parameter/boolean'
 require 'puppet/util/diff'
 
 # A NetworkManager keyfile (a connection or the NetworkManager.conf), written from a hash of sections.
