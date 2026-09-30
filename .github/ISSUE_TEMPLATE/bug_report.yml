@@ -1,0 +1,45 @@
+name: Bug report
+description: Something does not work as documented
+labels: [bug]
+body:
+  - type: input
+    id: module
+    attributes:
+      label: Module version
+      placeholder: 1.1.1
+    validations:
+      required: true
+  - type: input
+    id: puppet
+    attributes:
+      label: Puppet or OpenVox version
+      placeholder: OpenVox 8.10
+    validations:
+      required: true
+  - type: input
+    id: nm
+    attributes:
+      label: NetworkManager version and operating system
+      placeholder: NetworkManager 1.46, AlmaLinux 9
+    validations:
+      required: true
+  - type: textarea
+    id: manifest
+    attributes:
+      label: Manifest
+      description: The declaration of the class and of the connections (without secrets).
+      render: puppet
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behaviour
+    validations:
+      required: true
+  - type: textarea
+    id: log
+    attributes:
+      label: Puppet output
+      description: Remove the secrets before you paste it, the diffs of the keyfiles have them censored by the module.
+      render: text
