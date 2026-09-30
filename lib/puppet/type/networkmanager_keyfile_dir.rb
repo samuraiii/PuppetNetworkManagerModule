@@ -1,3 +1,5 @@
+require 'puppet/parameter/boolean'
+
 # A directory with the NetworkManager keyfiles, whose files which are not managed by the networkmanager_keyfile
 # resources of the catalog can be removed. The directory itself is not managed by it (use the file resource).
 Puppet::Type.newtype(:networkmanager_keyfile_dir) do
