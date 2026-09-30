@@ -18,7 +18,7 @@ concurrency:
 jobs:
   build:
     name: Build
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       checks: read
@@ -95,7 +95,7 @@ jobs:
   publish:
     name: Publish
     needs: build
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     # only tags are allowed to use this environment and its secret, see the environment settings
     environment:
       name: forge
