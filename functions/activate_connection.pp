@@ -5,6 +5,7 @@
 #   $state = the connection state
 # Additional variables:
 #   $networkmanager::sys_id = system name
+#   $networkmanager::connections_dir = the directory with the keyfiles
 
 function networkmanager::activate_connection (
   Pattern[/^\h{8}-(\h{4}-){3}\h{12}$/] $uuid,
@@ -18,7 +19,7 @@ function networkmanager::activate_connection (
         provider    => 'shell',
         group       => 'root',
         user        => 'root',
-        subscribe   => File["/etc/NetworkManager/system-connections/${id}.nmconnection"],
+        subscribe   => Networkmanager_keyfile["${networkmanager::connections_dir}/${id}.nmconnection"],
         refreshonly => true,
         tag         => "nmactivate-2022b07${networkmanager::sys_id}";
       "activate connection always ${uuid}":
@@ -37,7 +38,7 @@ function networkmanager::activate_connection (
         provider  => 'shell',
         group     => 'root',
         user      => 'root',
-        subscribe => File["/etc/NetworkManager/system-connections/${id}.nmconnection"],
+        subscribe => Networkmanager_keyfile["${networkmanager::connections_dir}/${id}.nmconnection"],
         onlyif    => "/usr/bin/nmcli -t -f GENERAL con show ${uuid} | /usr/bin/grep 'GENERAL.STATE:activated'",
         tag       => "nmactivate-2022b07${networkmanager::sys_id}";
     }

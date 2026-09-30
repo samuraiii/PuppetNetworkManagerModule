@@ -1,4 +1,4 @@
-# This class configures file /etc/NetworkManager/NetworkManager.conf,
+# This class configures file /etc/NetworkManager/NetworkManager.conf (the networkmanager_keyfile resource),
 # sets up whether to erase unmanaged keyfiles, and adds no-auto-default option
 # inside config file according to no_auto_default parameter defined at the entrance
 # of networkmanager class.
@@ -90,20 +90,31 @@ class networkmanager::config (
     }
   }
 
-  file {
+  networkmanager_keyfile {
     $main_conf_file:
-      ensure  => file,
-      owner   => 'root',
-      group   => 'root',
-      mode    => '0600',
-      notify  => Class['networkmanager::service'],
-      content => epp('networkmanager/ini.epp', { 'content' => $main_conf_content });
-    '/etc/NetworkManager/system-connections':
-      ensure  => directory,
-      owner   => 'root',
-      group   => 'root',
-      recurse => true,
-      purge   => $erase_unmanaged_keyfiles,
-      mode    => '0600';
+      ensure      => present,
+      owner       => 'root',
+      group       => 'root',
+      mode        => '0600',
+      notify      => Class['networkmanager::service'],
+      content     => $main_conf_content,
+      show_diff   => $networkmanager::show_diff,
+      secret_keys => $networkmanager::secret_keys;
+  }
+
+  $connections_dir = $networkmanager::connections_dir
+
+  file {
+    $connections_dir:
+      ensure => directory,
+      owner  => 'root',
+      group  => 'root',
+      mode   => '0600';
+  }
+
+  # every file of the directory which is not a keyfile managed by puppet is removed
+  networkmanager_keyfile_dir {
+    $connections_dir:
+      purge => $erase_unmanaged_keyfiles;
   }
 }

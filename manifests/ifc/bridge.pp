@@ -80,11 +80,9 @@ define networkmanager::ifc::bridge (
     fail("The connection \$id must have length from 3 to ${networkmanager::max_length_of_connection_id} characters")
   }
 
-  $ipv6_method_w = networkmanager::ipv6_disable_version($ipv6_method)
-
   $uuid = networkmanager::connection_uuid($id)
 
-  $ipv6_duid = networkmanager::resolve_ipv6_duid($ipv6_dhcp_duid, $mac_address, $ipv6_method_w, $ensure, $state, $id)
+  $ipv6_duid = networkmanager::resolve_ipv6_duid($ipv6_dhcp_duid, $mac_address, $ipv6_method, $ensure, $state, $id)
 
   $keyfile_contents = deep_merge(
     networkmanager::compact_keyfile({
@@ -102,7 +100,7 @@ define networkmanager::ifc::bridge (
     }),
     networkmanager::prepare_ipv4_config($ipv4_method, $ipv4_address, $ipv4_gateway, $ipv4_dns, $ipv4_may_fail),
     networkmanager::prepare_ipv6_config(
-      $ipv6_method_w,
+      $ipv6_method,
       $ipv6_address,
       $ipv6_gateway,
       $ipv6_dns,

@@ -4,7 +4,9 @@
 #   include networkmanager
 #
 # @param erase_unmanaged_keyfiles
-#   If you want to remove puppet unmanaged keyfiles from /etc/NetworkManager/system-connections/ directory DEFAULT: false
+#   If you want to remove puppet unmanaged keyfiles from the $connections_dir directory DEFAULT: false
+# @param connections_dir
+#   the directory with the connection keyfiles DEFAULT: /etc/NetworkManager/system-connections
 # @param no_auto_default
 #   If you want to add no-auto-default=* option inside main /etc/NetworkManager/NetworkManager.conf config file. DEFAULT: false
 # @param install_package
@@ -30,11 +32,18 @@
 #   the IPv6 DHCP DUID used for the connections which do not set their own $ipv6_dhcp_duid DEFAULT: 'auto'
 #   'auto' builds it from the mac address of the connection (the connection needs the $mac_address), 'unset' writes nothing so NetworkManager
 #   uses its own default, the NetworkManager keywords (ll, llt, lease, stable-ll, stable-llt, stable-uuid) or a literal DUID (aa:bb:cc:...) are used as they are
+# @param show_diff
+#   show the diffs of the keyfiles and of the NetworkManager.conf when they change (with the secrets censored, and only when the
+#   `show_diff` setting of Puppet is enabled as it is for the file resource) DEFAULT: true
+# @param secret_keys
+#   names of the settings whose values are censored in the diffs in addition to the built in ones (passwords, psk, wep keys,
+#   private keys, everything in the vpn-secrets section, ...) DEFAULT: []
 # @param additional_config
 #   Configuration hash for the NetworkManager.conf, it is able to override default module config in case of conflict!
 
 class networkmanager (
   Boolean                               $erase_unmanaged_keyfiles = false,
+  Stdlib::Absolutepath                  $connections_dir = '/etc/NetworkManager/system-connections',
   Boolean                               $no_auto_default = false,
   Boolean                               $install_package = true,
   Optional[String]                      $version = undef,
@@ -45,6 +54,8 @@ class networkmanager (
   Integer[3]                            $max_length_of_connection_id = 15,
   Pattern[/^\h{2}(:\h{2}){3}$/]         $duid_prefix = '00:03:00:01',
   Networkmanager::DHCP_DUID             $ipv6_dhcp_duid_default = 'auto',
+  Boolean                               $show_diff = true,
+  Array[String]                         $secret_keys = [],
   Hash                                  $additional_config = {},
 ) {
   $sys_id = [

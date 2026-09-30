@@ -1,7 +1,7 @@
 # Prepares the "ipv6" section of the keyfile. Only the method is written when the IPv6 is ignored or disabled,
 # the other settings would have no effect. Based on the idea of the pull request 24 by kbucheli.
 # Parameters:
-#   $ipv6_method = what method to use to get an IPv6 address (already adjusted by networkmanager::ipv6_disable_version)
+#   $ipv6_method = what method to use to get an IPv6 address
 #   $ipv6_address = the IPv6 address(es) to assign to the interface, see networkmanager::address_settings
 #   $ipv6_gateway = the IPv6 gateway for the connection
 #   $ipv6_dns = the dns servers for the interface (array or semicolon separated string)

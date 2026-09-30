@@ -11,6 +11,7 @@ This is main class of the network manager puppet module and you can define here 
 Parameters:
 
 * `erase_unmanaged_keyfiles` (`Boolean`) — default: `false` — If you want to remove puppet unmanaged keyfiles from /etc/NetworkManager/system-connections/ directory DEFAULT: false
+* `connections_dir` (`Stdlib::Absolutepath`) — default: `'/etc/NetworkManager/system-connections'` — the directory with the connection keyfiles DEFAULT: /etc/NetworkManager/system-connections
 * `no_auto_default` (`Boolean`) — default: `false` — If you want to add no-auto-default=* option inside main /etc/NetworkManager/NetworkManager.conf config file. DEFAULT: false
 * `install_package` (`Boolean`) — default: `true` — If you want to install puppet package from puppet module DEFAULT: true
 * `version` (`Optional[String]`) — default: `undef` — version string for NetworkManager version you want to install
@@ -21,6 +22,8 @@ Parameters:
 * `max_length_of_connection_id` (`Integer[3]`) — default: `15` — Limit the name of the connection to this length. DEFAULT: 15 characters to comply with kernel interface name limits since the connection $id is used as default for the connection $interface_name, if you change this you need to take care to supply the $interface_name with length < 16 characters where applicable
 * `duid_prefix` (`Pattern[/^\h{2}(:\h{2}){3}$/]`) — default: `'00:03:00:01'` — allows the change of the duid prefix to anything other with format "aa:bb:cc:dd" (downcased)
 * `ipv6_dhcp_duid_default` (`Networkmanager::DHCP_DUID`) — default: `'auto'` — the IPv6 DHCP DUID used for the connections which do not set their own $ipv6_dhcp_duid DEFAULT: 'auto' 'auto' builds it from the mac address of the connection (the connection needs the $mac_address), 'unset' writes nothing so NetworkManager uses its own default, the NetworkManager keywords (ll, llt, lease, stable-ll, stable-llt, stable-uuid) or a literal DUID (aa:bb:cc:...) are used as they are
+* `show_diff` (`Boolean`) — default: `true` — show the diffs of the keyfiles and of the NetworkManager.conf when they change (with the secrets censored, and only when the `show_diff` setting of Puppet is enabled as it is for the file resource) DEFAULT: true
+* `secret_keys` (`Array[String]`) — default: `[]` — names of the settings whose values are censored in the diffs in addition to the built in ones (passwords, psk, wep keys, private keys, everything in the vpn-secrets section, ...) DEFAULT: []
 * `additional_config` (`Hash`) — default: `{}` — Configuration hash for the NetworkManager.conf, it is able to override default module config in case of conflict!
 
 ### `networkmanager::config`
@@ -48,10 +51,6 @@ Parameters:
 * `install_extra_packages` (`Boolean`) — default: `$networkmanager::install_package` — Taken from `$networkmanager::install_package`
 * `version` (`Optional[String]`) — default: `$networkmanager::version` — Taken from `$networkmanager::version`
 
-### `networkmanager::notify_ipv6_disabled`
-
-To be included from networkmanager::ipv6_disable_version when incompatible $ipv6_method is detected to inform the user
-
 ### `networkmanager::os`
 
 This class sets the OS specific variables (package names) of the networkmanager module. Not to be used by user
@@ -68,6 +67,44 @@ Parameters:
 
 * `wait_online` (`Boolean`) — default: `$networkmanager::wait_online` — Taken from `$networkmanager::wait_online`
 
+## Resource types
+
+### `networkmanager_keyfile`
+
+A NetworkManager keyfile (a connection or the NetworkManager.conf) written from a hash of sections. The file is rendered by the provider `ruby` when the catalog is applied, so what is known only then is used (NetworkManager older than 1.20 does not support the `disabled` IPv6 method, the provider writes `ignore` and warns; the NetworkManager may be installed by the same run). A value is a string, a number, a boolean or an array (written as `a;b;`); the GLib key file escaping is applied. `puppet resource networkmanager_keyfile` lists the files of `/etc/NetworkManager/system-connections` and shows only the checksum of their content; the `networkmanager_keyfile_dir` resource removes the ones which are not in the catalog when `erase_unmanaged_keyfiles` is on.
+
+The change of the content is reported with the checksums and, when the `show_diff` setting of Puppet and the parameter `show_diff` are enabled, with the diff in which the values of the secrets are replaced by `<redacted>` (a change of a secret only is reported as `(only the values of the censored secrets differ)`). Censored are the settings with `password`, `passphrase`, `secret`, `private-key`, `preshared-key` or `token` in the name, `psk`, `pin`, `wep-key0` - `wep-key3`, `mka-cak`, `mka-ckn` and all the settings of the `vpn-secrets` and `secrets` sections (wifi, 802.1x, VPN, WireGuard, PPP, ...).
+
+Parameters:
+
+* `path` (namevar): the absolute path of the keyfile
+* `ensure`: `present` or `absent`
+* `content` (property): the sections as a hash of hashes
+* `mode` (property): default `0600`; `owner` and `group` (properties): default `root`
+* `header`: the comment on the top of the file, default `# THIS FILE IS CONTROLLED BY PUPPET`
+* `show_diff`: show the diff of the changes (secrets censored), default `true`
+* `secret_keys`: names of the settings censored in addition to the built in ones, default `[]`
+
+### `networkmanager_keyfile_dir`
+
+A directory with the NetworkManager keyfiles (`$networkmanager::connections_dir`). With `purge => true` (`$networkmanager::erase_unmanaged_keyfiles`, `false` by default) the files of the directory which are not a `networkmanager_keyfile` of the catalog are removed. The directory itself is managed by the `file` resource.
+
+Parameters:
+
+* `path` (namevar): the absolute path of the directory
+* `purge`: remove the files which are not managed by the catalog, default `false`
+
+### `networkmanager_link`
+
+Keeps the link of a network device down, or lets NetworkManager manage it again after it was unmanaged by `down`. The provider `nmcli` chooses the way when the catalog is applied: `nmcli device set <ifc> managed --permanent down|yes` when NetworkManager supports it (1.57+, backported by RHEL 9.9 / 10.3), `ip link set <ifc> down` otherwise. Used by `networkmanager::ifc::connection`.
+
+Parameters:
+
+* `name` (namevar): an arbitrary name of the resource
+* `interface_name`: the name of the network device, either this or `mac_address` is required
+* `mac_address`: the MAC address of the network device, used when `interface_name` is not set
+* `state` (property): `down` or `managed`
+
 ## Defined types
 
 ### `networkmanager::connection_keyfile_manage`
@@ -76,7 +113,7 @@ This defined resource manages the connection keyfiles It should not be used by u
 
 Parameters:
 
-* `content` (`Hash`) — The keyfile as a hash of the sections, each section is a hash of the settings (rendered by the templates/ini.epp)
+* `content` (`Hash`) — The keyfile as a hash of the sections, each section is a hash of the settings (rendered by the networkmanager_keyfile provider)
 * `ensure` (`Enum['absent', 'present']`) — default: `present` — state of the interface config DEFAULT: present
 
 ### `networkmanager::ifc::bond`
@@ -284,26 +321,6 @@ Parameters:
 
 * `dns` (`Optional[Variant[String, Array[String]]]`)
 
-### `networkmanager::ini_value`
-
-Formats a value for the NetworkManager keyfile (GLib key file format): the values are not quoted, the backslash, the new line, the tab, the carriage return and the leading or trailing space are escaped and an array is written as the list of values terminated by a semicolon (eg. 'a;b;'). A string is only escaped, so an already formatted list (eg. '192.0.2.53;') is left as it is. Parameters: $value = the value to format (string, number, boolean, undef or an array of them)
-
-Returns: `String`
-
-Parameters:
-
-* `value` (`Variant[Undef, Boolean, Numeric, String, Array[Variant[Boolean, Numeric, String]]]`)
-
-### `networkmanager::ipv6_disable_version`
-
-Ensures that the 'ignore' is returned when the 'disable' keyword is used on the NetworkManager version < 1.20 Parameters: $ipv6_method = IPv6 IP method of the interface
-
-Returns: `String`
-
-Parameters:
-
-* `ipv6_method` (`Enum['auto', 'dhcp', 'manual', 'ignore', 'link-local', 'disabled']`)
-
 ### `networkmanager::prepare_ipv4_config`
 
 Prepares the "ipv4" section of the keyfile. Only the method is written when the IPv4 is disabled, the other settings would have no effect. Based on the idea of the pull request 24 by kbucheli. Parameters: $ipv4_method = what method to use to get an IPv4 address $ipv4_address = the IPv4 address(es) to assign to the interface, see networkmanager::address_settings $ipv4_gateway = the IPv4 gateway for the connection $ipv4_dns = the dns servers for the interface (array or semicolon separated string) $ipv4_may_fail = is it OK that the IPv4 config fails?
@@ -320,7 +337,7 @@ Parameters:
 
 ### `networkmanager::prepare_ipv6_config`
 
-Prepares the "ipv6" section of the keyfile. Only the method is written when the IPv6 is ignored or disabled, the other settings would have no effect. Based on the idea of the pull request 24 by kbucheli. Parameters: $ipv6_method = what method to use to get an IPv6 address (already adjusted by networkmanager::ipv6_disable_version) $ipv6_address = the IPv6 address(es) to assign to the interface, see networkmanager::address_settings $ipv6_gateway = the IPv6 gateway for the connection $ipv6_dns = the dns servers for the interface (array or semicolon separated string) $ipv6_addr_gen_mode = IPv6 method for generating of automatic interface address $ipv6_privacy = should be the generated automatic address more private $ipv6_may_fail = is it OK that the IPv6 config fails? $ipv6_dhcp_duid = the IPv6 DHCP DUID, undef when it should not be written
+Prepares the "ipv6" section of the keyfile. Only the method is written when the IPv6 is ignored or disabled, the other settings would have no effect. Based on the idea of the pull request 24 by kbucheli. Parameters: $ipv6_method = what method to use to get an IPv6 address $ipv6_address = the IPv6 address(es) to assign to the interface, see networkmanager::address_settings $ipv6_gateway = the IPv6 gateway for the connection $ipv6_dns = the dns servers for the interface (array or semicolon separated string) $ipv6_addr_gen_mode = IPv6 method for generating of automatic interface address $ipv6_privacy = should be the generated automatic address more private $ipv6_may_fail = is it OK that the IPv6 config fails? $ipv6_dhcp_duid = the IPv6 DHCP DUID, undef when it should not be written
 
 Returns: `Hash`
 
@@ -348,7 +365,7 @@ Parameters:
 
 ### `networkmanager::resolve_ipv6_duid`
 
-Returns the IPv6 DHCP DUID to write to the keyfile of the connection, undef when nothing should be written. The DUID is written only for the 'auto' and 'dhcp' methods of an active connection. The DUID of the connection wins, the $networkmanager::ipv6_dhcp_duid_default is used when it is not set. The 'auto' DUID needs the mac address. Parameters: $duid = the DUID set for the connection (undef to use the default of the networkmanager class) $mac_address = the mac address of the interface for the connection $ipv6_method = the IPv6 method of the connection (after networkmanager::ipv6_disable_version) $ensure = the state of the connection config $state = the state of the connection (up/down) $id = the id of the connection (for the error message)
+Returns the IPv6 DHCP DUID to write to the keyfile of the connection, undef when nothing should be written. The DUID is written only for the 'auto' and 'dhcp' methods of an active connection. The DUID of the connection wins, the $networkmanager::ipv6_dhcp_duid_default is used when it is not set. The 'auto' DUID needs the mac address. Parameters: $duid = the DUID set for the connection (undef to use the default of the networkmanager class) $mac_address = the mac address of the interface for the connection $ipv6_method = the IPv6 method of the connection $ensure = the state of the connection config $state = the state of the connection (up/down) $id = the id of the connection (for the error message)
 
 Returns: `Optional[String]`
 
@@ -455,9 +472,3 @@ type Networkmanager::IPV6_ADDRESSES = Variant[
   Pattern[/\A[[:xdigit:]:.]+\/[0-9]{1,3}(;[[:xdigit:]:.]+\/[0-9]{1,3})+;?\z/],
 ]
 ```
-
-## Facts
-
-### `networkmanager`
-
-Structured fact set by `lib/facter/networkmanager_version.rb` when the `NetworkManager` binary is found. It contains `version` with `full`, `major`, `minor`, `build`, `patch` and `suffix` (where available) and is used to adapt the IPv6 `disabled` method to NetworkManager older than 1.20.

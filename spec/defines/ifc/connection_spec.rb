@@ -13,7 +13,7 @@ describe 'networkmanager::ifc::connection' do
       let(:facts) { os_facts }
 
       it { is_expected.to compile.with_all_deps }
-      it { is_expected.to contain_file('/etc/NetworkManager/system-connections/eth0conn.nmconnection').with_mode('0600') }
+      it { is_expected.to contain_networkmanager_keyfile('/etc/NetworkManager/system-connections/eth0conn.nmconnection').with_mode('0600') }
     end
   end
 end
@@ -26,8 +26,8 @@ describe 'networkmanager::ifc::connection' do
       ipv4_dns: ['8.8.8.8', '8.8.4.4'], ipv6_dns: ['2001:db8::53'] }
   end
 
-  it { is_expected.to contain_file('/etc/NetworkManager/system-connections/eth0conn.nmconnection').with_content(%r{^dns=8\.8\.8\.8;8\.8\.4\.4;$}) }
-  it { is_expected.to contain_file('/etc/NetworkManager/system-connections/eth0conn.nmconnection').with_content(%r{^dns=2001:db8::53;$}) }
+  it { expect(keyfile_text('/etc/NetworkManager/system-connections/eth0conn.nmconnection')).to match(%r{^dns=8\.8\.8\.8;8\.8\.4\.4;$}) }
+  it { expect(keyfile_text('/etc/NetworkManager/system-connections/eth0conn.nmconnection')).to match(%r{^dns=2001:db8::53;$}) }
 end
 
 describe 'networkmanager::ifc::connection' do
@@ -38,8 +38,8 @@ describe 'networkmanager::ifc::connection' do
       additional_config: { 'ipv4' => { 'dns-search' => ['example.com', 'example.org'] }, 'x' => { 'y' => 'a\\b' } } }
   end
 
-  it { is_expected.to contain_file('/etc/NetworkManager/system-connections/eth0conn.nmconnection').with_content(%r{^dns-search=example\.com;example\.org;$}) }
-  it { is_expected.to contain_file('/etc/NetworkManager/system-connections/eth0conn.nmconnection').with_content(%r{^y=a\\\\b$}) }
+  it { expect(keyfile_text('/etc/NetworkManager/system-connections/eth0conn.nmconnection')).to match(%r{^dns-search=example\.com;example\.org;$}) }
+  it { expect(keyfile_text('/etc/NetworkManager/system-connections/eth0conn.nmconnection')).to match(%r{^y=a\\\\b$}) }
 end
 
 describe 'networkmanager::ifc::connection' do
@@ -51,18 +51,18 @@ describe 'networkmanager::ifc::connection' do
   context 'with a single address' do
     let(:params) { base.merge(ipv4_address: '10.0.0.5/24', ipv6_address: '2001:db8::5/64') }
 
-    it { is_expected.to contain_file(file).with_content(%r{^address=10\.0\.0\.5/24$}) }
-    it { is_expected.to contain_file(file).with_content(%r{^address=2001:db8::5/64$}) }
+    it { expect(keyfile_text(file)).to match(%r{^address=10\.0\.0\.5/24$}) }
+    it { expect(keyfile_text(file)).to match(%r{^address=2001:db8::5/64$}) }
   end
 
   ['10.0.0.5/24;10.0.1.5/24', ['10.0.0.5/24', '10.0.1.5/24']].each do |addresses|
     context "with multiple IPv4 addresses as #{addresses.class}" do
       let(:params) { base.merge(ipv4_address: addresses, ipv6_address: %w[2001:db8::5/64 fd00::5/64], ipv4_gateway: '10.0.0.1') }
 
-      it { is_expected.to contain_file(file).with_content(%r{^address1=10\.0\.0\.5/24\naddress2=10\.0\.1\.5/24\n}) }
-      it { is_expected.to contain_file(file).with_content(%r{^address1=2001:db8::5/64\naddress2=fd00::5/64\n}) }
-      it { is_expected.not_to contain_file(file).with_content(%r{^address=}) }
-      it { is_expected.to contain_file(file).with_content(%r{^gateway=10\.0\.0\.1\naddress1=}) }
+      it { expect(keyfile_text(file)).to match(%r{^address1=10\.0\.0\.5/24\naddress2=10\.0\.1\.5/24\n}) }
+      it { expect(keyfile_text(file)).to match(%r{^address1=2001:db8::5/64\naddress2=fd00::5/64\n}) }
+      it { expect(keyfile_text(file)).not_to match(%r{^address=}) }
+      it { expect(keyfile_text(file)).to match(%r{^gateway=10\.0\.0\.1\naddress1=}) }
     end
   end
 end
@@ -78,8 +78,8 @@ describe 'networkmanager::ifc::connection' do
         ipv6_method: 'ignore', ipv6_address: '2001:db8::5/64' }
     end
 
-    it { is_expected.to contain_file(file).with_content(%r{\[ipv4\]\nmethod=disabled\n\n\[ipv6\]\nmethod=ignore\n}) }
-    it { is_expected.not_to contain_file(file).with_content(%r{^(address|dns|may-fail|addr-gen-mode|ip6-privacy)}) }
+    it { expect(keyfile_text(file)).to match(%r{\[ipv4\]\nmethod=disabled\n\n\[ipv6\]\nmethod=ignore\n}) }
+    it { expect(keyfile_text(file)).not_to match(%r{^(address|dns|may-fail|addr-gen-mode|ip6-privacy)}) }
   end
 end
 
@@ -91,11 +91,16 @@ describe 'networkmanager::ifc::connection' do
     "/etc/NetworkManager/system-connections/#{title}.nmconnection"
   end
 
+  # the title contains the UUID of the connection
+  def link_title
+    catalogue.resources.find { |r| 'Networkmanager_link' == r.type }.title
+  end
+
   context 'without the interface name and the mac address' do
     let(:title) { 'ens192' }
     let(:params) { base }
 
-    it { is_expected.to contain_file(keyfile('ens192')).with_content(%r{^interface-name=ens192$}) }
+    it { expect(keyfile_text(keyfile('ens192'))).to match(%r{^interface-name=ens192$}) }
   end
 
   context 'without the interface name and the mac address and with the state down' do
@@ -103,32 +108,65 @@ describe 'networkmanager::ifc::connection' do
     let(:params) { base.merge(state: 'down') }
 
     it 'shuts the link down using the derived interface name' do
-      commands = catalogue.resources.select { |r| r.type == 'Exec' && r.title.start_with?('shutdown link of connection') }.map { |r| r[:command] }
-      expect(commands).to eq(['ip link set dev ens192 down'])
+      is_expected.to contain_networkmanager_link(link_title).with(interface_name: 'ens192', state: 'down')
     end
+
+    it { is_expected.to contain_networkmanager_link(link_title).without_before }
+  end
+
+  context 'with the state up' do
+    let(:title) { 'ens192' }
+    let(:params) { base }
+
+    it 'lets NetworkManager manage the device before the connections are activated' do
+      is_expected.to contain_networkmanager_link(link_title).with(interface_name: 'ens192', state: 'managed', before: 'Class[Networkmanager::Reload]')
+    end
+  end
+
+  context 'with the mac address and the state down' do
+    let(:title) { 'ens192' }
+    let(:params) { base.merge(state: 'down', mac_address: 'aa:bb:cc:dd:ee:ff') }
+
+    it { is_expected.to contain_networkmanager_link(link_title).with(mac_address: 'aa:bb:cc:dd:ee:ff', state: 'down') }
+  end
+
+  context 'with connections_dir' do
+    let(:title) { 'ens192' }
+    let(:params) { base }
+    let(:pre_condition) { 'class { "networkmanager": connections_dir => "/srv/nm" }' }
+
+    it { is_expected.to contain_networkmanager_keyfile('/srv/nm/ens192.nmconnection') }
+  end
+
+  context 'with the diffs silenced' do
+    let(:title) { 'ens192' }
+    let(:params) { base }
+    let(:pre_condition) { 'class { "networkmanager": show_diff => false }' }
+
+    it { is_expected.to contain_networkmanager_keyfile(keyfile('ens192')).with_show_diff(false) }
   end
 
   context 'with the mac address only' do
     let(:title) { 'ens192' }
     let(:params) { base.merge(mac_address: 'aa:bb:cc:dd:ee:ff') }
 
-    it { is_expected.to contain_file(keyfile('ens192')).with_content(%r{^mac-address=aa:bb:cc:dd:ee:ff$}) }
-    it { is_expected.not_to contain_file(keyfile('ens192')).with_content(%r{^interface-name=}) }
+    it { expect(keyfile_text(keyfile('ens192'))).to match(%r{^mac-address=aa:bb:cc:dd:ee:ff$}) }
+    it { expect(keyfile_text(keyfile('ens192'))).not_to match(%r{^interface-name=}) }
   end
 
   context 'with the interface name' do
     let(:title) { 'ens192' }
     let(:params) { base.merge(interface_name: 'eth7') }
 
-    it { is_expected.to contain_file(keyfile('ens192')).with_content(%r{^interface-name=eth7$}) }
-    it { is_expected.not_to contain_file(keyfile('ens192')).with_content(%r{^interface-name=ens192$}) }
+    it { expect(keyfile_text(keyfile('ens192'))).to match(%r{^interface-name=eth7$}) }
+    it { expect(keyfile_text(keyfile('ens192'))).not_to match(%r{^interface-name=ens192$}) }
   end
 
   context 'with a different id' do
     let(:title) { 'ens192' }
     let(:params) { base.merge(id: 'uplink') }
 
-    it { is_expected.to contain_file(keyfile('uplink')).with_content(%r{^interface-name=ens192$}) }
+    it { expect(keyfile_text(keyfile('uplink'))).to match(%r{^interface-name=ens192$}) }
   end
 
   context 'with a title which is not usable as the interface name' do
@@ -146,8 +184,8 @@ describe 'networkmanager::ifc::connection' do
     let(:title) { 'wlan-home' }
     let(:params) { base.merge(type: 'wifi') }
 
-    it { is_expected.to contain_file(keyfile('wlan-home')) }
-    it { is_expected.not_to contain_file(keyfile('wlan-home')).with_content(%r{^interface-name=}) }
+    it { is_expected.to contain_networkmanager_keyfile(keyfile('wlan-home')) }
+    it { expect(keyfile_text(keyfile('wlan-home'))).not_to match(%r{^interface-name=}) }
   end
 end
 
@@ -160,7 +198,7 @@ describe 'networkmanager::ifc::connection' do
   context 'with the default IPv6 method auto, the mac address and no DUID' do
     let(:params) { base.merge(mac_address: 'aa:bb:cc:dd:ee:ff') }
 
-    it { is_expected.to contain_file(file).with_content(%r{^dhcp-duid=00:03:00:01:aa:bb:cc:dd:ee:ff$}) }
+    it { expect(keyfile_text(file)).to match(%r{^dhcp-duid=00:03:00:01:aa:bb:cc:dd:ee:ff$}) }
   end
 
   context 'with the default IPv6 method auto and neither the mac address nor the DUID (issue 29)' do
@@ -172,27 +210,27 @@ describe 'networkmanager::ifc::connection' do
       let(:pre_condition) { "class { 'networkmanager': ipv6_dhcp_duid_default => 'unset' }" }
 
       it { is_expected.to compile }
-      it { is_expected.not_to contain_file(file).with_content(%r{dhcp-duid}) }
+      it { expect(keyfile_text(file)).not_to match(%r{dhcp-duid}) }
     end
 
     context 'and the class default ll' do
       let(:pre_condition) { "class { 'networkmanager': ipv6_dhcp_duid_default => 'll' }" }
 
-      it { is_expected.to contain_file(file).with_content(%r{^dhcp-duid=ll$}) }
+      it { expect(keyfile_text(file)).to match(%r{^dhcp-duid=ll$}) }
     end
 
     context 'and the DUID unset for the connection while the class default is auto' do
       let(:params) { base.merge(ipv6_dhcp_duid: 'unset') }
 
       it { is_expected.to compile }
-      it { is_expected.not_to contain_file(file).with_content(%r{dhcp-duid}) }
+      it { expect(keyfile_text(file)).not_to match(%r{dhcp-duid}) }
     end
   end
 
   context 'with a DUID of the connection' do
     let(:params) { base.merge(ipv6_dhcp_duid: 'stable-ll') }
 
-    it { is_expected.to contain_file(file).with_content(%r{^dhcp-duid=stable-ll$}) }
+    it { expect(keyfile_text(file)).to match(%r{^dhcp-duid=stable-ll$}) }
   end
 
   context 'with an invalid DUID' do

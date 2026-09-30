@@ -26,7 +26,7 @@ define networkmanager::ifc::fallback (
 ) {
   include networkmanager
   Networkmanager::Ifc::Fallback[$title] ~> Class['networkmanager']
-  File['/etc/NetworkManager/NetworkManager.conf'] -> Networkmanager::Ifc::Fallback[$title]
+  Networkmanager_keyfile['/etc/NetworkManager/NetworkManager.conf'] -> Networkmanager::Ifc::Fallback[$title]
   if $id !~ String[3, $networkmanager::max_length_of_connection_id] {
     fail("The connection \$id must have length from 3 to ${networkmanager::max_length_of_connection_id} characters")
   }

@@ -12,7 +12,7 @@ describe 'networkmanager' do
       it { is_expected.to contain_class('networkmanager::install') }
       it { is_expected.to contain_class('networkmanager::config') }
       it { is_expected.to contain_class('networkmanager::service') }
-      it { is_expected.to contain_file('/etc/NetworkManager/NetworkManager.conf').with_content(%r{^\[main\]$}) }
+      it { expect(keyfile_text('/etc/NetworkManager/NetworkManager.conf')).to match(%r{^\[main\]$}) }
       it { is_expected.to contain_service('NetworkManager.service').with_ensure('running').with_enable(true) }
 
       case os_facts['os']['family']

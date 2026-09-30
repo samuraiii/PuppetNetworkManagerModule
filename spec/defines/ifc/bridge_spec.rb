@@ -13,7 +13,7 @@ describe 'networkmanager::ifc::bridge' do
       let(:facts) { os_facts }
 
       it { is_expected.to compile.with_all_deps }
-      it { is_expected.to contain_file('/etc/NetworkManager/system-connections/br0.nmconnection').with_mode('0600') }
+      it { is_expected.to contain_networkmanager_keyfile('/etc/NetworkManager/system-connections/br0.nmconnection').with_mode('0600') }
     end
   end
 end
@@ -23,7 +23,7 @@ describe 'networkmanager::ifc::bridge' do
   let(:facts) { nm_test_facts('AlmaLinux', '9') }
   let(:params) { { ipv6_method: 'ignore', ipv4_method: 'manual', ipv4_address: '10.0.0.5/24', ipv4_dns: '1.1.1.1;' } }
 
-  it { is_expected.to contain_file('/etc/NetworkManager/system-connections/br1.nmconnection').with_content(%r{^dns=1\.1\.1\.1;$}) }
+  it { expect(keyfile_text('/etc/NetworkManager/system-connections/br1.nmconnection')).to match(%r{^dns=1\.1\.1\.1;$}) }
 end
 
 describe 'networkmanager::ifc::bridge' do
@@ -36,13 +36,13 @@ describe 'networkmanager::ifc::bridge' do
     context 'and the class default unset' do
       let(:pre_condition) { "class { 'networkmanager': ipv6_dhcp_duid_default => 'unset' }" }
 
-      it { is_expected.not_to contain_file('/etc/NetworkManager/system-connections/br0.nmconnection').with_content(%r{dhcp-duid}) }
+      it { expect(keyfile_text('/etc/NetworkManager/system-connections/br0.nmconnection')).not_to match(%r{dhcp-duid}) }
     end
   end
 
   context 'with the IPv6 method auto and the mac address' do
     let(:params) { { mac_address: 'aa:bb:cc:dd:ee:ff' } }
 
-    it { is_expected.to contain_file('/etc/NetworkManager/system-connections/br0.nmconnection').with_content(%r{^dhcp-duid=00:03:00:01:aa:bb:cc:dd:ee:ff$}) }
+    it { expect(keyfile_text('/etc/NetworkManager/system-connections/br0.nmconnection')).to match(%r{^dhcp-duid=00:03:00:01:aa:bb:cc:dd:ee:ff$}) }
   end
 end

@@ -4,7 +4,7 @@
 # Parameters:
 #   $duid = the DUID set for the connection (undef to use the default of the networkmanager class)
 #   $mac_address = the mac address of the interface for the connection
-#   $ipv6_method = the IPv6 method of the connection (after networkmanager::ipv6_disable_version)
+#   $ipv6_method = the IPv6 method of the connection 
 #   $ensure = the state of the connection config
 #   $state = the state of the connection (up/down)
 #   $id = the id of the connection (for the error message)

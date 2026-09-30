@@ -1,6 +1,11 @@
 # frozen_string_literal: true
 
 require 'json'
+require_relative '../lib/puppet/type/networkmanager_keyfile'
+require_relative '../lib/puppet/provider/networkmanager_keyfile/ruby'
+
+# the tests do not ask the installed nmcli whether the `disabled` IPv6 method is supported
+Puppet::Type.type(:networkmanager_keyfile).provider(:ruby).instance_variable_set(:@ipv6_disabled_supported, true)
 
 # Facts are generated from operatingsystem_support in metadata.json instead of
 # facterdb, so every supported OS release is tested regardless of which
@@ -13,10 +18,8 @@ NM_OS_FAMILY = {
   'Ubuntu' => 'Debian',
 }.tap { |h| h.default = 'RedHat' }.freeze
 
-NM_VERSION = { 'major' => '1', 'minor' => '40' }.freeze
-
-# Builds a facts hash for the given OS and NetworkManager version.
-def nm_test_facts(name, release, family = NM_OS_FAMILY[name], nm_version = NM_VERSION)
+# Builds a facts hash for the given OS.
+def nm_test_facts(name, release, family = NM_OS_FAMILY[name])
   {
     'kernel' => 'Linux',
     'os' => {
@@ -25,7 +28,6 @@ def nm_test_facts(name, release, family = NM_OS_FAMILY[name], nm_version = NM_VE
       'release' => { 'major' => release, 'full' => release },
     },
     'networking' => { 'hostname' => 'testhost', 'fqdn' => 'testhost.example.com' },
-    'networkmanager' => { 'version' => nm_version },
   }
 end
 
@@ -38,4 +40,10 @@ def each_test_os
       yield "#{entry['operatingsystem']} #{release}", nm_test_facts(entry['operatingsystem'], release)
     end
   end
+end
+
+# The text of a networkmanager_keyfile of the catalogue, rendered by its provider.
+def keyfile_text(path)
+  content = catalogue.resource('Networkmanager_keyfile', path)[:content]
+  Puppet::Type.type(:networkmanager_keyfile).new(path: path, content: content).provider.render(content)
 end

@@ -13,7 +13,7 @@ describe 'networkmanager::ifc::bridge::slave' do
       let(:facts) { os_facts }
 
       it { is_expected.to compile.with_all_deps }
-      it { is_expected.to contain_file('/etc/NetworkManager/system-connections/eth2slave.nmconnection').with_mode('0600') }
+      it { is_expected.to contain_networkmanager_keyfile('/etc/NetworkManager/system-connections/eth2slave.nmconnection').with_mode('0600') }
     end
   end
 end

@@ -13,7 +13,7 @@ describe 'networkmanager::ifc::vlan' do
       let(:facts) { os_facts }
 
       it { is_expected.to compile.with_all_deps }
-      it { is_expected.to contain_file('/etc/NetworkManager/system-connections/vlan100.nmconnection').with_mode('0600') }
+      it { is_expected.to contain_networkmanager_keyfile('/etc/NetworkManager/system-connections/vlan100.nmconnection').with_mode('0600') }
     end
   end
 end
@@ -27,14 +27,14 @@ describe 'networkmanager::ifc::vlan' do
   context 'with a connection UUID as the parent' do
     let(:params) { { vlan_id: 100, vlan_parent: '0f2a1c3e-1111-4222-8333-444455556666' } }
 
-    it { is_expected.to contain_file(file).with_content(%r{^parent=0f2a1c3e-1111-4222-8333-444455556666$}) }
-    it { is_expected.not_to contain_file(file).with_content(%r{UUID=}) }
+    it { expect(keyfile_text(file)).to match(%r{^parent=0f2a1c3e-1111-4222-8333-444455556666$}) }
+    it { expect(keyfile_text(file)).not_to match(%r{UUID=}) }
   end
 
   context 'with a connection id as the parent' do
     let(:params) { { vlan_id: 100, vlan_parent: 'eth0conn' } }
 
-    it { is_expected.to contain_file(file).with_content(%r{^parent=\h{8}-\h{4}-\h{4}-\h{4}-\h{12}$}) }
-    it { is_expected.not_to contain_file(file).with_content(%r{^parent=eth0conn$}) }
+    it { expect(keyfile_text(file)).to match(%r{^parent=\h{8}-\h{4}-\h{4}-\h{4}-\h{12}$}) }
+    it { expect(keyfile_text(file)).not_to match(%r{^parent=eth0conn$}) }
   end
 end

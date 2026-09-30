@@ -1,4 +1,15 @@
 # CHANGELOG
+## Unreleased
+* New features:
+    - the keyfiles and the `NetworkManager.conf` are managed by the new `networkmanager_keyfile` type, its `ruby` provider renders the GLib key file from the hash of sections when the catalog is applied (it replaces `templates/ini.epp` and `networkmanager::ini_value`); the diffs of the changes are shown (when the `show_diff` setting of Puppet is on) with the values of the secrets (passwords, `psk`, wep keys, private keys, `vpn-secrets`, ...) censored, `$networkmanager::show_diff` (`true` by default) switches them off, `$networkmanager::secret_keys` adds more censored settings; `puppet resource networkmanager_keyfile` shows only the checksums of the content
+    - the `disabled` IPv6 method is changed to `ignore` (with a warning) by the provider when the installed NetworkManager does not support it (< 1.20), it asks `nmcli` when the catalog is applied, so it works when NetworkManager is installed by the same run
+    - the link of a `networkmanager::ifc::connection` with `$state => 'down'` is handled by the new `networkmanager_link` type, its `nmcli` provider decides when the catalog is applied: NetworkManager supporting it (1.57+, backported to RHEL 9.9 / 10.3) gets `nmcli device set <ifc> managed --permanent down`, so the device is unmanaged and down persistently, the others `ip link set <ifc> down`; switching back to `'up'` runs `nmcli device set <ifc> managed --permanent yes` when the device is unmanaged
+    - `$networkmanager::connections_dir` (`/etc/NetworkManager/system-connections` by default) sets the directory of the connection keyfiles
+* Behaviour changes to check when upgrading:
+    - the keyfiles are no more `file` resources (`File['/etc/NetworkManager/NetworkManager.conf']` and `File['.../<id>.nmconnection']` are `Networkmanager_keyfile[...]` now), fix the relationships in your code; the exec `shutdown link of connection <uuid>` is replaced by `networkmanager_link`
+    - `erase_unmanaged_keyfiles` (`false` by default, so nothing is removed) is done by the new `networkmanager_keyfile_dir` type, the `system-connections` directory is not recursed any more; every file of the directory that is not a `networkmanager_keyfile` of the catalog is removed, as before
+    - the `networkmanager` fact, `networkmanager::ipv6_disable_version` and `networkmanager::notify_ipv6_disabled` were removed (the fact had only the `version`, which was used just for the IPv6 `disabled` method; if you use `$facts['networkmanager']` in your code, use `nmcli --version` in your own fact)
+
 ## 1.1.0 -> 1.1.1
 * Maintenance:
     - the development continues in https://github.com/samuraiii/PuppetNetworkManagerModule, the `source`, `project_page` and `issues_url` of `metadata.json` and the README point to it (jednoprsak/PuppetNetworkManagerModule is not developed any more, v1.1.0 was the last release published there)

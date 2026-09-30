@@ -92,9 +92,7 @@ define networkmanager::ifc::connection (
 
   $uuid = networkmanager::connection_uuid($id)
 
-  $ipv6_method_w = networkmanager::ipv6_disable_version($ipv6_method)
-
-  $ipv6_duid = networkmanager::resolve_ipv6_duid($ipv6_dhcp_duid, $mac_address, $ipv6_method_w, $ensure, $state, $id)
+  $ipv6_duid = networkmanager::resolve_ipv6_duid($ipv6_dhcp_duid, $mac_address, $ipv6_method, $ensure, $state, $id)
 
   $keyfile_contents = deep_merge(
     networkmanager::compact_keyfile({
@@ -109,7 +107,7 @@ define networkmanager::ifc::connection (
     }),
     networkmanager::prepare_ipv4_config($ipv4_method, $ipv4_address, $ipv4_gateway, $ipv4_dns, $ipv4_may_fail),
     networkmanager::prepare_ipv6_config(
-      $ipv6_method_w,
+      $ipv6_method,
       $ipv6_address,
       $ipv6_gateway,
       $ipv6_dns,
@@ -131,22 +129,26 @@ define networkmanager::ifc::connection (
     networkmanager::activate_connection($uuid, $id, $state)
 
     # NetworkManager leaves the link administratively UP after the connection is deactivated
-    # (or when it was never activated), so shut the link down explicitly. Bringing it back
-    # is done by switching $state to 'up' or manually with `nmcli connection up <id>`.
-    if 'down' == $state and ($interface_name_w or $mac_address) {
-      $link_device = $interface_name_w ? {
-        undef   => "\$(basename \"\$(dirname \"\$(grep -il '^${mac_address}\$' /sys/class/net/*/address | head -n1)\")\")",
-        default => $interface_name_w,
+    # (or when it was never activated), so shut the link down explicitly. The provider of networkmanager_link
+    # does it persistently and unmanages the device with `nmcli device set <ifc> managed --permanent down`
+    # when NetworkManager supports it, with `ip link` otherwise. Bringing it back is done by switching $state to 'up',
+    # the device is then managed again before the connection is activated.
+    if $interface_name_w or $mac_address {
+      if 'down' == $state {
+        $link_state = 'down'
+        $link_before = undef
+      }
+      else {
+        $link_state = 'managed'
+        $link_before = Class['networkmanager::reload']
       }
 
-      exec {
-        "shutdown link of connection ${uuid}":
-          command  => "ip link set dev ${link_device} down",
-          onlyif   => "ip -o link show up dev ${link_device} | grep -q .",
-          provider => 'shell',
-          path     => ['/usr/sbin', '/sbin', '/usr/bin', '/bin'],
-          user     => 'root',
-          group    => 'root';
+      networkmanager_link {
+        "link of connection ${uuid}":
+          interface_name => $interface_name_w,
+          mac_address    => $mac_address,
+          state          => $link_state,
+          before         => $link_before;
       }
     }
   }
