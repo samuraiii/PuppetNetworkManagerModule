@@ -2,5 +2,5 @@
 # Not to be used by user
 
 class networkmanager::reload {
-  Exec <<| tag == "nmactivate-2022b07${networkmanager::sys_id}" |>>
+  Exec <<| tag == $networkmanager::activation_tag |>>
 }

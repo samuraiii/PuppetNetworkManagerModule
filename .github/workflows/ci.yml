@@ -31,6 +31,8 @@ jobs:
   spec:
     name: Spec (${{ matrix.openvox && 'OpenVox' || 'Puppet' }} ${{ matrix.openvox || matrix.puppet }}, stdlib ${{ matrix.stdlib }}, Ruby ${{ matrix.ruby }})
     runs-on: ubuntu-24.04
+    # OpenVox 9 is a release candidate, its failures do not fail the workflow
+    continue-on-error: ${{ matrix.experimental || false }}
     strategy:
       fail-fast: false
       matrix:
@@ -40,11 +42,13 @@ jobs:
           - {puppet: '7', ruby: '3.2', stdlib: 'v9.7.0'}
           - {puppet: '8', ruby: '3.3', stdlib: 'v9.7.0'}
           - {puppet: '8', ruby: '3.3', stdlib: 'v10.1.0'}
-          - {openvox: '7', ruby: '2.7', stdlib: 'v9.7.0'}
-          - {openvox: '8', ruby: '3.3', stdlib: 'v10.1.0'}
+          - {openvox: '7', openvox_gem: '~> 7.0', ruby: '2.7', stdlib: 'v9.7.0'}
+          # OpenVox 8.24 and newer and 9 are tested without puppetlabs_spec_helper (see the Gemfile)
+          - {openvox: '8', openvox_gem: '~> 8.0', ruby: '3.3', stdlib: 'v10.1.0', plain: true}
+          - {openvox: '9', openvox_gem: '>= 9.0.0.pre.alpha', ruby: '3.4', stdlib: 'v10.1.0', plain: true, experimental: true}
     env:
       PUPPET_GEM_VERSION: ${{ matrix.puppet && format('~> {0}.0', matrix.puppet) || '' }}
-      OPENVOX_GEM_VERSION: ${{ matrix.openvox && format('~> {0}.0', matrix.openvox) || '' }}
+      OPENVOX_GEM_VERSION: ${{ matrix.openvox_gem || '' }}
       STDLIB_REF: ${{ matrix.stdlib }}
     steps:
       - uses: actions/checkout@v7
@@ -56,4 +60,10 @@ jobs:
       - name: Fetch stdlib fixture
         run: git clone --depth 1 --branch "${STDLIB_REF}" https://github.com/puppetlabs/puppetlabs-stdlib.git spec/fixtures/modules/stdlib
       - name: Run spec tests
+        if: ${{ !matrix.plain }}
         run: bundle exec rake spec
+      - name: Run spec tests (without puppetlabs_spec_helper)
+        if: ${{ matrix.plain }}
+        run: |
+          bundle exec rake spec_prep
+          bundle exec rspec spec/classes spec/defines spec/functions spec/hosts spec/type_aliases spec/unit

@@ -3,6 +3,9 @@ source ENV['GEM_SOURCE'] || 'https://rubygems.org'
 puppet_version = ENV.fetch('PUPPET_GEM_VERSION', '')
 openvox_version = ENV.fetch('OPENVOX_GEM_VERSION', '')
 legacy = puppet_version.match?(%r{\b6\b})
+# OpenVox 8.24 and newer (and 9) do not work with puppetlabs_spec_helper and puppet-syntax, they depend on the puppet gem
+# (puppetlabs-syntax) or cap OpenVox, so they are tested with rspec-puppet directly (see the Rakefile and spec/spec_helper.rb)
+openvox_plain = openvox_version.match?(%r{\b(8|9)\b})
 
 group :test do
   gem 'facterdb', require: false
@@ -15,8 +18,10 @@ group :test do
     gem 'puppet', require: false
   end
   gem 'puppet-lint', require: false
-  gem 'puppet-syntax', require: false
-  gem 'puppetlabs_spec_helper', legacy ? '~> 5.0' : ['>= 7.0', '< 9'], require: false
+  unless openvox_plain
+    gem 'puppet-syntax', require: false
+    gem 'puppetlabs_spec_helper', *(legacy ? ['~> 5.0'] : ['>= 7.0', '< 9']), require: false
+  end
   gem 'racc', require: false
   gem 'rake', require: false
   gem 'rspec-puppet', legacy ? '~> 2.9' : '>= 4.0', require: false

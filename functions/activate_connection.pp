@@ -4,7 +4,7 @@
 #   $id    = name of the connection (here used for a file name)
 #   $state = the connection state
 # Additional variables:
-#   $networkmanager::sys_id = system name
+#   $networkmanager::activation_tag = the tag of the exported execs, collected by networkmanager::reload
 #   $networkmanager::connections_dir = the directory with the keyfiles
 
 function networkmanager::activate_connection (
@@ -21,7 +21,7 @@ function networkmanager::activate_connection (
         user        => 'root',
         subscribe   => Networkmanager_keyfile["${networkmanager::connections_dir}/${id}.nmconnection"],
         refreshonly => true,
-        tag         => "nmactivate-2022b07${networkmanager::sys_id}";
+        tag         => $networkmanager::activation_tag;
       "activate connection always ${uuid}":
         command  => networkmanager::reload_connection($uuid, $state),
         provider => 'shell',
@@ -29,7 +29,7 @@ function networkmanager::activate_connection (
         user     => 'root',
         unless   => "/usr/bin/nmcli -t -f GENERAL con show ${uuid} | /usr/bin/grep 'GENERAL.STATE:activated'",
         require  => Exec["activate connection after initial config ${uuid}"],
-        tag      => "nmactivate-2022b07${networkmanager::sys_id}";
+        tag      => $networkmanager::activation_tag;
     }
   } elsif $state == 'down' {
     @@exec {
@@ -40,7 +40,7 @@ function networkmanager::activate_connection (
         user      => 'root',
         subscribe => Networkmanager_keyfile["${networkmanager::connections_dir}/${id}.nmconnection"],
         onlyif    => "/usr/bin/nmcli -t -f GENERAL con show ${uuid} | /usr/bin/grep 'GENERAL.STATE:activated'",
-        tag       => "nmactivate-2022b07${networkmanager::sys_id}";
+        tag       => $networkmanager::activation_tag;
     }
   }
 }

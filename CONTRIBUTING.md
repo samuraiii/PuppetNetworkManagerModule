@@ -4,7 +4,7 @@ Issues and pull requests are welcome: https://github.com/samuraiii/PuppetNetwork
 
 - Run the checks before you send a change, they are the same as in `.github/workflows/ci.yml`, see the
   [Development](README.md#development) section of the README (metadata lint, `rake syntax lint`, `rake spec`).
-- The module supports Puppet 6 - 8 and OpenVox 7 - 8 (Ruby 2.7 and newer), do not use newer syntax than the
+- The module supports Puppet 6 - 8 and OpenVox 7 - 8 (Ruby 2.7 and newer), OpenVox 9 is tested as a release candidate, do not use newer syntax than the
   existing code does.
 - Add a spec for a change of the behaviour and describe it in `CHANGELOG.md` and, where it applies, in
   `README.md` and `REFERENCE.md`.
