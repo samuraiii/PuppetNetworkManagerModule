@@ -1,5 +1,12 @@
 # networkmanager
 
+[![CI](https://img.shields.io/github/actions/workflow/status/samuraiii/PuppetNetworkManagerModule/ci.yml?branch=main&label=CI)](https://github.com/samuraiii/PuppetNetworkManagerModule/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/samuraiii/PuppetNetworkManagerModule)](https://github.com/samuraiii/PuppetNetworkManagerModule/releases)
+[![Puppet Forge version](https://img.shields.io/puppetforge/v/samuraiii/networkmanager)](https://forge.puppet.com/modules/samuraiii/networkmanager)
+[![Puppet Forge downloads](https://img.shields.io/puppetforge/dt/samuraiii/networkmanager)](https://forge.puppet.com/modules/samuraiii/networkmanager)
+[![License: MIT](https://img.shields.io/github/license/samuraiii/PuppetNetworkManagerModule)](LICENSE)
+[![Issues](https://img.shields.io/github/issues/samuraiii/PuppetNetworkManagerModule)](https://github.com/samuraiii/PuppetNetworkManagerModule/issues)
+
 
 ## Table of Contents
 
