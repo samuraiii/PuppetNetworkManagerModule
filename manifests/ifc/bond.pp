@@ -51,7 +51,7 @@ define networkmanager::ifc::bond (
   Enum['absent', 'present']                                     $ensure = present,
   Enum['up', 'down']                                            $state = 'up',
   String                                                        $id = $title,
-  String[3, 15]                                                 $interface_name = $title,
+  Networkmanager::Interface_name                                $interface_name = $title,
   Optional[Stdlib::MAC]                                         $mac_address = undef,
   Optional[String]                                              $master = undef,
   Variant[
@@ -83,6 +83,13 @@ define networkmanager::ifc::bond (
 ) {
   include networkmanager
   Class['networkmanager'] -> Networkmanager::Ifc::Bond[$title]
+
+  if $id !~ String[3, $networkmanager::max_length_of_connection_id] {
+    fail("The connection \$id must have length from 3 to ${networkmanager::max_length_of_connection_id} characters")
+  }
+  if $id !~ Networkmanager::Connection_id {
+    fail("The connection \$id may contain only printable ASCII characters except '/' and '\\' and must not start with a dot")
+  }
 
   $uuid = networkmanager::connection_uuid($id)
 

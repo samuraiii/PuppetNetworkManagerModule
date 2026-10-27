@@ -238,4 +238,25 @@ describe 'networkmanager::ifc::connection' do
 
     it { is_expected.to compile.and_raise_error(%r{ipv6_dhcp_duid}) }
   end
+
+  context 'with an id that could leave the connections directory' do
+    let(:facts) { nm_test_facts('AlmaLinux', '9') }
+    let(:params) { { interface_name: 'eth0', ipv6_method: 'ignore', ipv4_method: 'manual', ipv4_address: '10.0.0.5/24', ipv4_gateway: '10.0.0.1' }.merge(id: '../x/etc') }
+
+    it { is_expected.to compile.and_raise_error(%r{printable ASCII}) }
+  end
+
+  context 'with a space in the id' do
+    let(:facts) { nm_test_facts('AlmaLinux', '9') }
+    let(:params) { { interface_name: 'eth0', ipv6_method: 'ignore', ipv4_method: 'manual', ipv4_address: '10.0.0.5/24', ipv4_gateway: '10.0.0.1' }.merge(id: 'Wired 1') }
+
+    it { is_expected.to compile }
+  end
+
+  context 'with an interface name that would be taken as an option' do
+    let(:facts) { nm_test_facts('AlmaLinux', '9') }
+    let(:params) { { interface_name: '-batch', ipv6_method: 'ignore', ipv4_method: 'manual', ipv4_address: '10.0.0.5/24', ipv4_gateway: '10.0.0.1' } }
+
+    it { is_expected.to compile.and_raise_error(%r{interface_name}) }
+  end
 end

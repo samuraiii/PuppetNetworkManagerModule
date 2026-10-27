@@ -10,6 +10,12 @@ define networkmanager::connection_keyfile_manage (
   Enum['absent', 'present'] $ensure = present,
 
 ) {
+  assert_private()
+
+  if $title !~ Networkmanager::Connection_id {
+    fail("The connection title may contain only printable ASCII characters except '/' and '\\' and must not start with a dot")
+  }
+
   networkmanager_keyfile {
     "${networkmanager::connections_dir}/${title}.nmconnection":
       ensure      => $ensure,

@@ -19,6 +19,8 @@ class networkmanager::install (
   Boolean          $install_extra_packages = $networkmanager::install_package,
   Optional[String] $version = $networkmanager::version,
 ) {
+  assert_private()
+
   if $version {
     $ensure_nm_install = $version
   }

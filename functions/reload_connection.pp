@@ -4,7 +4,7 @@
 #   $state = the desired connection state
 
 function networkmanager::reload_connection(
-  Pattern[/^\h{8}-(\h{4}-){3}\h{12}$/] $uuid,
+  Pattern[/\A\h{8}-(\h{4}-){3}\h{12}\z/] $uuid,
   Enum['up', 'down'] $state,
 ) >> String {
   $bash_part = 'while test "$(gdbus introspect --system --dest org.freedesktop.NetworkManager --object-path /org/freedesktop/NetworkManager/Settings| wc -l)" -lt "3"; do sleep 1 ; done && /usr/bin/nmcli connection reload && /usr/bin/nmcli connection'

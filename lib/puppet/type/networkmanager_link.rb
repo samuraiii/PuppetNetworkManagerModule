@@ -15,7 +15,7 @@ Puppet::Type.newtype(:networkmanager_link) do
   newparam(:interface_name) do
     desc 'The name of the network device. Either this or `mac_address` is required.'
     validate do |value|
-      raise ArgumentError, "Invalid interface name '#{value}'" unless value =~ %r{\A[^\s/:]{1,15}\z}
+      raise ArgumentError, "Invalid interface name '#{value}'" unless value =~ %r{\A(?!(all|default)\z)[0-9A-Za-z][!-~&&[^/\\:*?\[\]]]{0,14}\z}
     end
   end
 

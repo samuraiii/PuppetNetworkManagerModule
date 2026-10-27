@@ -51,7 +51,7 @@ define networkmanager::ifc::connection (
   Enum['absent', 'present']                                          $ensure = present,
   Enum['up', 'down']                                                 $state = 'up',
   String                                                             $id = $title,
-  Optional[String[3, 15]]                                            $interface_name = undef,
+  Optional[Networkmanager::Interface_name]                           $interface_name = undef,
   Optional[Stdlib::MAC]                                              $mac_address = undef,
   Optional[String]                                                   $master = undef,
   String                                                             $type = 'ethernet',
@@ -75,15 +75,18 @@ define networkmanager::ifc::connection (
   if $id !~ String[3, $networkmanager::max_length_of_connection_id] {
     fail("The connection \$id must have length from 3 to ${networkmanager::max_length_of_connection_id} characters")
   }
+  if $id !~ Networkmanager::Connection_id {
+    fail("The connection \$id may contain only printable ASCII characters except '/' and '\\' and must not start with a dot")
+  }
 
   # an ethernet connection has to be bound to an interface, without the interface name and the mac address
   # the title is used as the interface name
   if 'ethernet' == $type and undef == $interface_name and undef == $mac_address {
-    if $title =~ /\A[^\s\/:]{3,15}\z/ {
+    if $title =~ Networkmanager::Interface_name {
       $interface_name_w = $title
     }
     else {
-      fail("The title '${title}' of the ethernet connection ${id} can not be used as the interface name (3 to 15 characters, no whitespace, '/' or ':'), set interface_name or mac_address")
+      fail("The title '${title}' of the ethernet connection ${id} can not be used as the interface name (1 to 15 printable ASCII characters, no whitespace, '/', '\\', ':', '*', '?', '[' or ']', starting with a letter or a digit, not 'all' or 'default'), set interface_name or mac_address")
     }
   }
   else {

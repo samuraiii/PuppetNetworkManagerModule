@@ -30,6 +30,9 @@ define networkmanager::ifc::fallback (
   if $id !~ String[3, $networkmanager::max_length_of_connection_id] {
     fail("The connection \$id must have length from 3 to ${networkmanager::max_length_of_connection_id} characters")
   }
+  if $id !~ Networkmanager::Connection_id {
+    fail("The connection \$id may contain only printable ASCII characters except '/' and '\\' and must not start with a dot")
+  }
 
   $uuid = networkmanager::connection_uuid($id)
 
