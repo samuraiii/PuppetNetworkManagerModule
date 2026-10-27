@@ -4,7 +4,7 @@
 #   include networkmanager
 #
 # @param erase_unmanaged_keyfiles
-#   If you want to remove puppet unmanaged keyfiles from the $connections_dir directory DEFAULT: false
+#   If you want to remove puppet unmanaged keyfiles (*.nmconnection) from the $connections_dir directory DEFAULT: false
 # @param connections_dir
 #   the directory with the connection keyfiles DEFAULT: /etc/NetworkManager/system-connections
 # @param no_auto_default
@@ -42,21 +42,21 @@
 #   Configuration hash for the NetworkManager.conf, it is able to override default module config in case of conflict!
 
 class networkmanager (
-  Boolean                               $erase_unmanaged_keyfiles = false,
-  Stdlib::Absolutepath                  $connections_dir = '/etc/NetworkManager/system-connections',
-  Boolean                               $no_auto_default = false,
-  Boolean                               $install_package = true,
-  Optional[String]                      $version = undef,
-  Array[String]                         $unmanaged_devices = [],
-  Boolean                               $wait_online = true,
+  Boolean                                  $erase_unmanaged_keyfiles = false,
+  Stdlib::Absolutepath                     $connections_dir = '/etc/NetworkManager/system-connections',
+  Boolean                                  $no_auto_default = false,
+  Boolean                                  $install_package = true,
+  Optional[String]                         $version = undef,
+  Array[Networkmanager::Unmanaged_device]  $unmanaged_devices = [],
+  Boolean                                  $wait_online = true,
   Optional[Variant[Boolean, Enum['stub']]] $use_internal_resolv_conf = undef,
-  Array[String]                         $plugins = ['keyfile'],
-  Integer[3]                            $max_length_of_connection_id = 15,
-  Pattern[/^\h{2}(:\h{2}){3}$/]         $duid_prefix = '00:03:00:01',
-  Networkmanager::DHCP_DUID             $ipv6_dhcp_duid_default = 'auto',
-  Boolean                               $show_diff = true,
-  Array[String]                         $secret_keys = [],
-  Hash                                  $additional_config = {},
+  Array[Networkmanager::Plugin]            $plugins = ['keyfile'],
+  Integer[3]                               $max_length_of_connection_id = 15,
+  Pattern[/\A\h{2}(:\h{2}){3}\z/]          $duid_prefix = '00:03:00:01',
+  Networkmanager::DHCP_DUID                $ipv6_dhcp_duid_default = 'auto',
+  Boolean                                  $show_diff = true,
+  Array[String]                            $secret_keys = [],
+  Hash                                     $additional_config = {},
 ) {
   $sys_id = [
     $trusted['certname'],
@@ -65,7 +65,7 @@ class networkmanager (
     $facts['networking']['fqdn'],
   ].filter |$hn| { $hn =~ String[1] }[0]
   $duid_prefix_d = $duid_prefix.downcase
-  # the tag of the exported activation execs of this node, they are collected by networkmanager::reload
+  # the tag of the virtual activation execs of this node, they are collected by networkmanager::reload
   $activation_tag = "nmactivate-2022b07${sys_id}"
   include networkmanager::os
 

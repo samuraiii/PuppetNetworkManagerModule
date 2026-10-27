@@ -4,16 +4,16 @@
 #   $id    = name of the connection (here used for a file name)
 #   $state = the connection state
 # Additional variables:
-#   $networkmanager::activation_tag = the tag of the exported execs, collected by networkmanager::reload
+#   $networkmanager::activation_tag = the tag of the virtual execs, collected by networkmanager::reload
 #   $networkmanager::connections_dir = the directory with the keyfiles
 
 function networkmanager::activate_connection (
-  Pattern[/^\h{8}-(\h{4}-){3}\h{12}$/] $uuid,
+  Pattern[/\A\h{8}-(\h{4}-){3}\h{12}\z/] $uuid,
   String[3] $id,
   Enum['up', 'down'] $state,
 ) {
   if $state == 'up' {
-    @@exec {
+    @exec {
       "activate connection after initial config ${uuid}":
         command     => networkmanager::reload_connection($uuid, $state),
         provider    => 'shell',
@@ -32,7 +32,7 @@ function networkmanager::activate_connection (
         tag      => $networkmanager::activation_tag;
     }
   } elsif $state == 'down' {
-    @@exec {
+    @exec {
       "deactivate connection ${uuid}":
         command   => networkmanager::reload_connection($uuid, $state),
         provider  => 'shell',

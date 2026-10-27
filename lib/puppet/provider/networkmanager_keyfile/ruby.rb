@@ -17,7 +17,7 @@ Puppet::Type.type(:networkmanager_keyfile).provide(:ruby) do
 
   # the keys and the sections whose values are censored in the diffs
   def self.secret_key
-    %r{password|passphrase|secret|private-key|preshared-key|token|\A(?:psk|pin|wep-key[0-3]|mka-c[ak]n?k?)\z}i
+    %r{password|passphrase|secret|private-key|preshared-key|token|cookie|credential|api[-_]?key|auth[-_]?key|\A(?:psk|pin|wep-key[0-3]|mka-c[ak]n?k?)\z}i
   end
 
   def self.secret_sections
