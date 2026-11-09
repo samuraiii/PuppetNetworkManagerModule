@@ -16,7 +16,7 @@ describe 'networkmanager::config' do
   context 'with the defaults' do
     let(:facts) { nm_test_facts('AlmaLinux', '9') }
 
-    it { is_expected.to contain_networkmanager_keyfile('/etc/NetworkManager/NetworkManager.conf').with_show_diff(true).with_secret_keys([]).that_notifies('Class[networkmanager::service]') }
+    it { is_expected.to contain_networkmanager_keyfile('/etc/NetworkManager/NetworkManager.conf').with_show_diff(true).with_secret_keys([]).that_notifies('Service[NetworkManager]') }
     it { is_expected.to contain_networkmanager_keyfile_dir('/etc/NetworkManager/system-connections').with_purge(false) }
     it { is_expected.to contain_file('/etc/NetworkManager/system-connections').with_ensure('directory').without_purge }
   end
@@ -48,6 +48,7 @@ describe 'networkmanager::config' do
     let(:pre_condition) { 'class { "networkmanager": unmanaged_devices => ["docker*", "veth?", "00:11:22:33:44:55"], plugins => ["keyfile", "ifcfg-rh"] }' }
 
     it { is_expected.to compile.with_all_deps }
+    it { expect(keyfile_text('/etc/NetworkManager/NetworkManager.conf')).to match(%r{^plugins=keyfile,ifcfg-rh$}) }
   end
 
   context 'with a separator in an unmanaged device' do

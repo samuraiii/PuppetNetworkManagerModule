@@ -27,6 +27,12 @@ jobs:
         run: bundle exec rake syntax
       - name: Puppet lint
         run: bundle exec rake lint
+      - name: Ruby lint
+        run: bundle exec rubocop
+      - name: REFERENCE.md is generated from the code
+        run: |
+          bundle exec puppet strings generate --format markdown --out REFERENCE.md
+          git diff --exit-code REFERENCE.md
 
   spec:
     name: Spec (${{ matrix.openvox && 'OpenVox' || 'Puppet' }} ${{ matrix.openvox || matrix.puppet }}, stdlib ${{ matrix.stdlib }}, Ruby ${{ matrix.ruby }})
@@ -66,4 +72,4 @@ jobs:
         if: ${{ matrix.plain }}
         run: |
           bundle exec rake spec_prep
-          bundle exec rspec $(ls -d spec/classes spec/defines spec/functions spec/hosts spec/type_aliases spec/types spec/unit 2>/dev/null)
+          bundle exec rspec spec/classes spec/defines spec/functions spec/type_aliases spec/unit

@@ -17,10 +17,9 @@
 # @param additional_config
 #   Settings merged over the NetworkManager.conf built by the module, they win in case of a conflict.
 #   Taken from `$networkmanager::additional_config`
-
 class networkmanager::config (
   Boolean                                  $erase_unmanaged_keyfiles = $networkmanager::erase_unmanaged_keyfiles,
-  Variant[Boolean,String]                  $no_auto_default = $networkmanager::no_auto_default,
+  Boolean                                  $no_auto_default = $networkmanager::no_auto_default,
   Array[Networkmanager::Unmanaged_device]  $unmanaged_devices = $networkmanager::unmanaged_devices,
   Array[Networkmanager::Plugin]            $plugins = $networkmanager::plugins,
   Optional[Variant[Boolean, Enum['stub']]] $use_internal_resolv_conf = $networkmanager::use_internal_resolv_conf,
@@ -32,7 +31,8 @@ class networkmanager::config (
   if $unmanaged_devices != [] {
     $unmanaged_devices_c = join($unmanaged_devices.map |$dev| {
       if $dev =~ Stdlib::MAC {
-        "mac:${dev}"
+        # NetworkManager reads only the form aa:bb:cc:dd:ee:ff, the separator of the MAC address may be a dash
+        "mac:${networkmanager::normalize_mac($dev)}"
       }
       else {
         "interface-name:${dev}"
@@ -44,11 +44,7 @@ class networkmanager::config (
     $unmanaged = {}
   }
   if $no_auto_default {
-    $nauto = $no_auto_default ? {
-      true    => '*',
-      default => $no_auto_default,
-    }
-    $noauto = { 'main' => { 'no-auto-default' => $nauto } }
+    $noauto = { 'main' => { 'no-auto-default' => '*' } }
   }
   else {
     $noauto = {}
@@ -109,7 +105,7 @@ class networkmanager::config (
       owner       => 'root',
       group       => 'root',
       mode        => '0600',
-      notify      => Class['networkmanager::service'],
+      notify      => Service['NetworkManager'],
       content     => $main_conf_content,
       show_diff   => $networkmanager::show_diff,
       secret_keys => $networkmanager::secret_keys;
@@ -122,7 +118,7 @@ class networkmanager::config (
       ensure => directory,
       owner  => 'root',
       group  => 'root',
-      mode   => '0600';
+      mode   => '0700';
   }
 
   # every *.nmconnection file of the directory which is not a keyfile managed by puppet is removed

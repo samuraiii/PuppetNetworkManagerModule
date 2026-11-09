@@ -11,9 +11,12 @@
 # @param mac_address
 #   the mac of the interface for the connection
 # @param master
-#   $id or UUID of the connection master if applicable
+#   $id or UUID of the connection master if applicable, the $slave_type is required with it
+# @param slave_type
+#   type of the master (bond, bridge, team, ...), written as the slave-type, required with the $master (NetworkManager refuses a master
+#   without it), ignored without the $master
 # @param bridge_stp
-#   bridge the spanning tree protocol
+#   enable the spanning tree protocol (STP) of the bridge
 # @param bridge_forward_delay
 #   delay of forwarding in seconds
 # @param ipv4_method
@@ -37,9 +40,9 @@
 # @param ipv6_dhcp_duid
 #   IPv6 DHCP DUID, 'auto' builds it from the $mac_address, 'unset' writes nothing (NetworkManager default), a NetworkManager keyword or a literal DUID is used as it is DEFAULT: $networkmanager::ipv6_dhcp_duid_default
 # @param ipv6_addr_gen_mode
-#   IPv6 method for generating of automatic interface address
+#   IPv6 method for generating of the automatic interface address (0 eui64, 1 stable-privacy, 2 default-or-eui64, 3 default) DEFAULT: 0, the address stays the same, a deliberate choice for servers
 # @param ipv6_privacy
-#   should be the generated automatic address more private
+#   IPv6 privacy extensions (temporary addresses: -1 default, 0 disabled, 1 prefer public, 2 prefer temporary) DEFAULT: 0, a deliberate choice for servers
 # @param ipv6_may_fail
 #   is it OK that the ipv6 config fails? DEFAULT: true
 # @param additional_config
@@ -48,7 +51,7 @@
 #   $additional_config hash and it will be merged with other parameters.
 #   The additional_config has the HIGHEST priority when merged!
 #   ie: it will override the defined values of the connection in case of the conflict
-
+#   A setting with an empty string value ('') is not written, like an unset one; the connection.id, uuid, interface-name, master and slave-type can not be overridden
 define networkmanager::ifc::bridge (
   Enum['absent', 'present']                                     $ensure = present,
   Enum['up', 'down']                                            $state = 'up',
@@ -56,8 +59,9 @@ define networkmanager::ifc::bridge (
   Networkmanager::Interface_name                                $interface_name = $title,
   Optional[Stdlib::MAC]                                         $mac_address = undef,
   Optional[String]                                              $master = undef,
+  Optional[Networkmanager::Port_type]                                $slave_type = undef,
   Boolean                                                       $bridge_stp = true,
-  Integer[0]                                                    $bridge_forward_delay = 15,
+  Integer[0, 30]                                                $bridge_forward_delay = 15,
   Enum['auto','dhcp','manual','disabled','link-local']          $ipv4_method = 'auto',
   Optional[Networkmanager::IPV4_ADDRESSES]                           $ipv4_address = undef,
   Optional[Stdlib::IP::Address::V4::Nosubnet]                   $ipv4_gateway = undef,
@@ -74,23 +78,18 @@ define networkmanager::ifc::bridge (
   Hash                                                          $additional_config = {},
 ) {
   include networkmanager
-  Class['networkmanager'] -> Networkmanager::Ifc::Bridge[$title]
 
-  if $id !~ String[3, $networkmanager::max_length_of_connection_id] {
-    fail("The connection \$id must have length from 3 to ${networkmanager::max_length_of_connection_id} characters")
-  }
-  if $id !~ Networkmanager::Connection_id {
-    fail("The connection \$id may contain only printable ASCII characters except '/' and '\\' and must not start with a dot")
-  }
 
   $uuid = networkmanager::connection_uuid($id)
+  $port_settings = { 'connection' => networkmanager::port_settings($master, $slave_type, $id) }
+  networkmanager::forbid_uuid_override($additional_config, $id)
+  $after = $master ? { undef => [], default => [networkmanager::connection_uuid($master)] }
 
   $ipv6_duid = networkmanager::resolve_ipv6_duid($ipv6_dhcp_duid, $mac_address, $ipv6_method, $ensure, $state, $id)
 
   $keyfile_contents = deep_merge(
     networkmanager::compact_keyfile({
       'connection' => {
-        'master'         => $master ? { undef => undef, default => networkmanager::connection_uuid($master) },
         'id'             => $id,
         'uuid'           => $uuid,
         'type'           => 'bridge',
@@ -101,6 +100,7 @@ define networkmanager::ifc::bridge (
         'forward-delay' => $bridge_forward_delay,
       },
     }),
+    $port_settings,
     networkmanager::prepare_ipv4_config($ipv4_method, $ipv4_address, $ipv4_gateway, $ipv4_dns, $ipv4_may_fail),
     networkmanager::prepare_ipv6_config(
       $ipv6_method,
@@ -115,16 +115,13 @@ define networkmanager::ifc::bridge (
     $additional_config
   )
 
-  networkmanager::connection_keyfile_manage {
+  networkmanager::connection_manage {
     $id:
-      ensure  => $ensure,
-      content => $keyfile_contents;
+      ensure         => $ensure,
+      state          => $state,
+      content        => $keyfile_contents,
+      after          => $after,
+      interface_name => $interface_name,
+      mac_address    => $mac_address;
   }
-
-  if $ensure == present {
-    networkmanager::activate_connection($uuid, $id, $state)
-  }
-
-  include networkmanager::reload
-  Networkmanager::Ifc::Bridge[$title] ~> Class['networkmanager::reload']
 }

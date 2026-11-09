@@ -11,7 +11,7 @@
 # @param type
 #   connection type DEFAULT: ethernet
 # @param mac_address
-#   the mac of the interface for the connection REQUIRED IF $ifc_name was not supplied
+#   the mac of the interface for the connection REQUIRED IF $interface_name was not supplied
 # @param interface_name
 #   name of the connection interface REQUIRED IF $mac_address was not supplied
 # @param additional_config
@@ -20,7 +20,7 @@
 #   $additional_config hash and it will be merged with other parameters.
 #   The additional_config has the HIGHEST priority when merged!
 #   ie: it will override the defined values of the connection in case of the conflict
-
+#   A setting with an empty string value ('') is not written, like an unset one; the connection.id, uuid, interface-name, master and slave-type can not be overridden
 define networkmanager::ifc::bond::slave (
   String                    $master,
   Enum['absent', 'present'] $ensure = present,
@@ -32,14 +32,7 @@ define networkmanager::ifc::bond::slave (
   Hash                      $additional_config = {},
 ) {
   include networkmanager
-  Class['networkmanager'] -> Networkmanager::Ifc::Bond::Slave[$title]
 
-  if $id !~ String[3, $networkmanager::max_length_of_connection_id] {
-    fail("The connection \$id must have length from 3 to ${networkmanager::max_length_of_connection_id} characters")
-  }
-  if $id !~ Networkmanager::Connection_id {
-    fail("The connection \$id may contain only printable ASCII characters except '/' and '\\' and must not start with a dot")
-  }
 
   $uuid = networkmanager::connection_uuid($id)
 
@@ -47,8 +40,10 @@ define networkmanager::ifc::bond::slave (
     $name,
     $title,
     $mac_address,
-    $interface_name
+    $interface_name,
+    $type
   )
+  networkmanager::forbid_uuid_override($additional_config, $id)
 
   $master_uuid = networkmanager::connection_uuid($master)
 
@@ -62,18 +57,17 @@ define networkmanager::ifc::bond::slave (
     },
   }
 
+  $after = [$master_uuid]
+
   $keyfile_contents = deep_merge($int_mac_config, $connection_config, $additional_config)
 
-  networkmanager::connection_keyfile_manage {
+  networkmanager::connection_manage {
     $id:
-      ensure  => $ensure,
-      content => $keyfile_contents;
+      ensure         => $ensure,
+      state          => $state,
+      content        => $keyfile_contents,
+      after          => $after,
+      interface_name => $interface_name,
+      mac_address    => $mac_address;
   }
-
-  if $ensure == present {
-    networkmanager::activate_connection($uuid, $id, $state)
-  }
-
-  include networkmanager::reload
-  Networkmanager::Ifc::Bond::Slave[$title] ~> Class['networkmanager::reload']
 }

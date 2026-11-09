@@ -65,4 +65,25 @@ describe Puppet::Type.type(:networkmanager_keyfile_dir) do
       expect(resource.generate.map { |r| r[:path] }).to eq([File.join(globdir, 'x.nmconnection')])
     end
   end
+
+  context 'with a symlink in the path of the keyfiles' do
+    let(:link) { "#{dir}-link" }
+
+    before { File.symlink(dir, link) }
+
+    after { FileUtils.rm_f(link) }
+
+    it 'recognizes a managed keyfile given through the link of the directory' do
+      catalog.add_resource(Puppet::Type.type(:networkmanager_keyfile).new(path: File.join(link, 'other.nmconnection'), content: {}))
+      File.write(File.join(dir, 'other.nmconnection'), '')
+      resource = described_class.new(path: dir, purge: true, catalog: catalog)
+      expect(resource.generate.map { |r| r[:path] }).to eq([File.join(dir, 'stray.nmconnection')])
+    end
+
+    it 'removes a link in the directory which is not managed, even when its target is' do
+      File.symlink(File.join(dir, 'kept.nmconnection'), File.join(dir, 'alias.nmconnection'))
+      resource = described_class.new(path: dir, purge: true, catalog: catalog)
+      expect(resource.generate.map { |r| r[:path] }).to include(File.join(dir, 'alias.nmconnection'))
+    end
+  end
 end

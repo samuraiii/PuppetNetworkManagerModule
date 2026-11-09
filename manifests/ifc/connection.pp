@@ -11,7 +11,10 @@
 # @param mac_address
 #   the mac of the interface for the connection
 # @param master
-#   $id or UUID of the connection master if applicable
+#   $id or UUID of the connection master if applicable, the $slave_type is required with it
+# @param slave_type
+#   type of the master (bond, bridge, team, ...), written as the slave-type, required with the $master (NetworkManager refuses a master
+#   without it), ignored without the $master
 # @param type
 #   the type of the connection DEFAULT: 'ethernet'
 # @param ipv4_method
@@ -35,9 +38,9 @@
 # @param ipv6_dhcp_duid
 #   IPv6 DHCP DUID, 'auto' builds it from the $mac_address, 'unset' writes nothing (NetworkManager default), a NetworkManager keyword or a literal DUID is used as it is DEFAULT: $networkmanager::ipv6_dhcp_duid_default
 # @param ipv6_addr_gen_mode
-#   IPv6 method for generating of automatic interface address
+#   IPv6 method for generating of the automatic interface address (0 eui64, 1 stable-privacy, 2 default-or-eui64, 3 default) DEFAULT: 0, the address stays the same, a deliberate choice for servers
 # @param ipv6_privacy
-#   should be the generated automatic address more private
+#   IPv6 privacy extensions (temporary addresses: -1 default, 0 disabled, 1 prefer public, 2 prefer temporary) DEFAULT: 0, a deliberate choice for servers
 # @param ipv6_may_fail
 #   is it OK that the ipv6 config fails? DEFAULT: true
 # @param additional_config
@@ -46,7 +49,7 @@
 #   $additional_config hash and it will be merged with other parameters.
 #   The additional_config has the HIGHEST priority when merged!
 #   ie: it will override the defined values of the connection in case of the conflict
-
+#   A setting with an empty string value ('') is not written, like an unset one; the connection.id, uuid, interface-name, master and slave-type can not be overridden
 define networkmanager::ifc::connection (
   Enum['absent', 'present']                                          $ensure = present,
   Enum['up', 'down']                                                 $state = 'up',
@@ -54,6 +57,7 @@ define networkmanager::ifc::connection (
   Optional[Networkmanager::Interface_name]                           $interface_name = undef,
   Optional[Stdlib::MAC]                                              $mac_address = undef,
   Optional[String]                                                   $master = undef,
+  Optional[Networkmanager::Port_type]                                $slave_type = undef,
   String                                                             $type = 'ethernet',
   Enum['auto', 'dhcp', 'manual', 'disabled', 'link-local']           $ipv4_method = 'auto',
   Optional[Networkmanager::IPV4_ADDRESSES]                                $ipv4_address = undef,
@@ -71,13 +75,6 @@ define networkmanager::ifc::connection (
   Hash                                                               $additional_config = {},
 ) {
   include networkmanager
-  Class['networkmanager'] -> Networkmanager::Ifc::Connection[$title]
-  if $id !~ String[3, $networkmanager::max_length_of_connection_id] {
-    fail("The connection \$id must have length from 3 to ${networkmanager::max_length_of_connection_id} characters")
-  }
-  if $id !~ Networkmanager::Connection_id {
-    fail("The connection \$id may contain only printable ASCII characters except '/' and '\\' and must not start with a dot")
-  }
 
   # an ethernet connection has to be bound to an interface, without the interface name and the mac address
   # the title is used as the interface name
@@ -94,6 +91,9 @@ define networkmanager::ifc::connection (
   }
 
   $uuid = networkmanager::connection_uuid($id)
+  $port_settings = { 'connection' => networkmanager::port_settings($master, $slave_type, $id) }
+  networkmanager::forbid_uuid_override($additional_config, $id)
+  $after = $master ? { undef => [], default => [networkmanager::connection_uuid($master)] }
 
   $ipv6_duid = networkmanager::resolve_ipv6_duid($ipv6_dhcp_duid, $mac_address, $ipv6_method, $ensure, $state, $id)
 
@@ -101,13 +101,12 @@ define networkmanager::ifc::connection (
     networkmanager::compact_keyfile({
       'connection' => {
         'interface-name' => $interface_name_w,
-        'master'         => $master ? { undef => undef, default => networkmanager::connection_uuid($master) },
         'id'             => $id,
         'uuid'           => $uuid,
         'type'           => $type,
       },
-      'ethernet'   => { 'mac-address' => $mac_address },
-    }),
+    }) + networkmanager::mac_address_settings($type, $mac_address),
+    $port_settings,
     networkmanager::prepare_ipv4_config($ipv4_method, $ipv4_address, $ipv4_gateway, $ipv4_dns, $ipv4_may_fail),
     networkmanager::prepare_ipv6_config(
       $ipv6_method,
@@ -122,40 +121,13 @@ define networkmanager::ifc::connection (
     $additional_config
   )
 
-  networkmanager::connection_keyfile_manage {
+  networkmanager::connection_manage {
     $id:
-      ensure  => $ensure,
-      content => $keyfile_contents;
+      ensure         => $ensure,
+      state          => $state,
+      content        => $keyfile_contents,
+      after          => $after,
+      interface_name => $interface_name_w,
+      mac_address    => $mac_address;
   }
-
-  if $ensure == present {
-    networkmanager::activate_connection($uuid, $id, $state)
-
-    # NetworkManager leaves the link administratively UP after the connection is deactivated
-    # (or when it was never activated), so shut the link down explicitly. The provider of networkmanager_link
-    # does it persistently and unmanages the device with `nmcli device set <ifc> managed --permanent down`
-    # when NetworkManager supports it, with `ip link` otherwise. Bringing it back is done by switching $state to 'up',
-    # the device is then managed again before the connection is activated.
-    if $interface_name_w or $mac_address {
-      if 'down' == $state {
-        $link_state = 'down'
-        $link_before = undef
-      }
-      else {
-        $link_state = 'managed'
-        $link_before = Class['networkmanager::reload']
-      }
-
-      networkmanager_link {
-        "link of connection ${uuid}":
-          interface_name => $interface_name_w,
-          mac_address    => $mac_address,
-          state          => $link_state,
-          before         => $link_before;
-      }
-    }
-  }
-
-  include networkmanager::reload
-  Networkmanager::Ifc::Connection[$title] ~> Class['networkmanager::reload']
 }

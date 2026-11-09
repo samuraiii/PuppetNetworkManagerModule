@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'puppet/parameter/boolean'
 
 # A directory with the NetworkManager keyfiles, whose files which are not managed by the networkmanager_keyfile
@@ -27,10 +29,21 @@ Puppet::Type.newtype(:networkmanager_keyfile_dir) do
     return [] unless self[:purge]
     return [] unless ::File.directory?(self[:path])
 
-    managed = catalog.resources.select { |r| :networkmanager_keyfile == r.type }.map { |r| ::File.expand_path(r[:path]) }
+    managed = catalog.resources.select { |r| :networkmanager_keyfile == r.type }.map { |r| real_path(r[:path]) }
     files = Dir.children(self[:path]).grep(%r{\.nmconnection\z}).map { |name| ::File.join(self[:path], name) }
-    unmanaged = files.select { |file| ::File.file?(file) }.map { |file| ::File.expand_path(file) } - managed
+    unmanaged = files.select { |file| ::File.file?(file) }.reject { |file| managed.include?(real_path(file)) }
     unmanaged.sort.map { |file| Puppet::Type.type(:networkmanager_keyfile).new(path: file, ensure: :absent) }
+  end
+
+  # the path with the symlinks of the directories resolved (a path through a symlinked directory is the same file),
+  # the file itself is not resolved: a link in the directory is not the file it points to
+  def real_path(path)
+    expanded = ::File.expand_path(path)
+    begin
+      ::File.join(::File.realpath(::File.dirname(expanded)), ::File.basename(expanded))
+    rescue SystemCallError
+      expanded
+    end
   end
 
   autorequire(:file) do

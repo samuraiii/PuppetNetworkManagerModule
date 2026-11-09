@@ -8,13 +8,10 @@
 define networkmanager::connection_keyfile_manage (
   Hash                      $content,
   Enum['absent', 'present'] $ensure = present,
-
 ) {
   assert_private()
 
-  if $title !~ Networkmanager::Connection_id {
-    fail("The connection title may contain only printable ASCII characters except '/' and '\\' and must not start with a dot")
-  }
+  # the title is checked by networkmanager::connection_manage, the only user of this define
 
   networkmanager_keyfile {
     "${networkmanager::connections_dir}/${title}.nmconnection":

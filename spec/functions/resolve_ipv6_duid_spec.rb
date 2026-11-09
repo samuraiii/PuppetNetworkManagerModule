@@ -24,8 +24,8 @@ describe 'networkmanager::resolve_ipv6_duid' do
   context 'when nothing should be written' do
     it('for the manual method') { expect(resolve(nil, nil, 'manual')).to be_nil }
     it('for the ignored IPv6') { expect(resolve('auto', nil, 'ignore')).to be_nil }
-    it('for the connection which is down') { expect(resolve(nil, nil, 'auto', 'present', 'down')).to be_nil }
     it('for the absent connection') { expect(resolve(nil, nil, 'auto', 'absent')).to be_nil }
+    it('for the connection which is down it is written as well (the identity of the profile)') { expect(resolve(nil, mac, 'auto', 'present', 'down')).to eq(generated) }
     it('for the dhcp method it is written') { expect(resolve(nil, mac, 'dhcp')).to eq(generated) }
   end
 

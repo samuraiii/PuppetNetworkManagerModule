@@ -161,5 +161,112 @@ describe Puppet::Type.type(:networkmanager_keyfile).provider(:ruby) do
       expect(diff).to include('+id=other')
       expect(diff).not_to include('hunter2')
     end
+
+    context 'with a mode set' do
+      let(:extra) { { mode: '0644' } }
+
+      it 'keeps the mode when the content changes' do
+        provider.create
+        provider.content = { 'connection' => { 'id' => 'changed' } }
+        expect(format('%04o', File.stat(path).mode & 0o7777)).to eq('0644')
+      end
+    end
+
+    it 'uses the mode 0600 for a new file without the mode' do
+      provider.content = content
+      expect(format('%04o', File.stat(path).mode & 0o7777)).to eq('0600')
+    end
+
+    context 'with the names of the secret settings given by the user' do
+      let(:extra) { { secret_keys: ['My-Token-X'] } }
+
+      it 'censors them whatever the case is' do
+        text = "[connection]\nmy-token-x=abc\nid=test\n"
+        expect(provider.censor(text)).to eq("[connection]\nmy-token-x=<redacted>\nid=test\n")
+      end
+    end
+
+    it 'censors the MACsec keys, but not similar names' do
+      text = "[macsec]\nmka-cak=1\nmka-ckn=2\nmka-can=3\nmka-ca=4\n"
+      expect(provider.censor(text)).to eq("[macsec]\nmka-cak=<redacted>\nmka-ckn=<redacted>\nmka-can=3\nmka-ca=4\n")
+    end
+
+    it 'lists only the *.nmconnection files of the default directory' do
+      allow(described_class).to receive(:connections_dir).and_return(dir)
+      %w[a.nmconnection b.nmconnection readme.txt c.nmconnection~].each { |name| File.write(File.join(dir, name), '') }
+      expect(described_class.instances.map(&:name).map { |name| File.basename(name) }).to eq(%w[a.nmconnection b.nmconnection])
+    end
+
+    it 'reports a change of the secrets only as such' do
+      allow(Puppet::Util::Diff).to receive(:diff) { |old, new| Open3.capture2('diff', '-u', old, new).first }
+      first = { 'wifi-security' => { 'psk' => 'one' } }
+      provider.create
+      provider.content = first
+      expect(provider.diff({ 'wifi-security' => { 'psk' => 'two' } })).to eq('(only the values of the censored secrets differ)')
+    end
+
+    it 'has no checksum, mode, owner and group for a file which does not exist' do
+      expect([provider.checksum, provider.mode, provider.owner, provider.group]).to eq(%i[absent absent absent absent])
+    end
+
+    it 'fails with a clear message for a user or a group which does not exist' do
+      provider.create
+      expect { provider.owner = 'no_such_user_xyz' }.to raise_error(Puppet::Error, %r{user 'no_such_user_xyz'})
+      expect { provider.group = 'no_such_group_xyz' }.to raise_error(Puppet::Error, %r{group 'no_such_group_xyz'})
+    end
+  end
+end
+
+describe Puppet::Type.type(:networkmanager_keyfile).provider(:ruby), 'the detection of the disabled IPv6 method' do
+  let(:execution) { Puppet::Util::Execution }
+
+  # the specs set the memo, the detection itself is tested here with the memo removed and restored
+  around do |example|
+    memo = described_class.instance_variable_get(:@ipv6_disabled_supported)
+    described_class.remove_instance_variable(:@ipv6_disabled_supported)
+    example.run
+  ensure
+    described_class.instance_variable_set(:@ipv6_disabled_supported, memo)
+  end
+
+  def stub_nmcli(output)
+    allow(Puppet::Util).to receive(:which).with('nmcli').and_return('/usr/bin/nmcli')
+    allow(execution).to receive(:execute).with(['/usr/bin/nmcli', '--version'], anything).and_return(output)
+  end
+
+  it 'is supported from NetworkManager 1.20' do
+    stub_nmcli("nmcli tool, version 1.20.0\n")
+    expect(described_class.ipv6_disabled_supported?).to be(true)
+  end
+
+  it 'is supported for a newer version with a release suffix' do
+    stub_nmcli("nmcli tool, version 1.46.0-1.el9\n")
+    expect(described_class.ipv6_disabled_supported?).to be(true)
+  end
+
+  it 'is not supported for NetworkManager older than 1.20' do
+    stub_nmcli("nmcli tool, version 1.18.8\n")
+    expect(described_class.ipv6_disabled_supported?).to be(false)
+  end
+
+  it 'compares the numbers, not the text (1.9 is older than 1.20)' do
+    stub_nmcli("nmcli tool, version 1.9.2\n")
+    expect(described_class.ipv6_disabled_supported?).to be(false)
+  end
+
+  it 'fails for an output which is not understood' do
+    stub_nmcli("something else\n")
+    expect { described_class.ipv6_disabled_supported? }.to raise_error(Puppet::Error, %r{can not read the NetworkManager version})
+  end
+
+  it 'fails without nmcli' do
+    allow(Puppet::Util).to receive(:which).with('nmcli').and_return(nil)
+    expect { described_class.ipv6_disabled_supported? }.to raise_error(Puppet::Error, %r{nmcli not found})
+  end
+
+  it 'asks nmcli only once' do
+    stub_nmcli("nmcli tool, version 1.46.0\n")
+    2.times { described_class.ipv6_disabled_supported? }
+    expect(execution).to have_received(:execute).once
   end
 end

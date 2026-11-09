@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'puppet/parameter/boolean'
 require 'puppet/util/diff'
 
@@ -10,6 +12,8 @@ Puppet::Type.newtype(:networkmanager_keyfile) do
     Manages a keyfile of the NetworkManager from a hash of sections, each section is a hash of settings
     (a string, a number, a boolean or an array, which is written as `a;b;`).
     The `puppet resource` shows just the checksum of the content, the diffs shown by the changes have the secrets censored.
+    `puppet resource networkmanager_keyfile` always lists the default directory `/etc/NetworkManager/system-connections`,
+    whatever the `connections_dir` of the module is.
   DOC
 
   ensurable
@@ -39,7 +43,8 @@ Puppet::Type.newtype(:networkmanager_keyfile) do
       The names of the settings whose values are censored in the diffs, in addition to the built in ones: the keys with
       `password`, `passphrase`, `secret`, `private-key`, `preshared-key`, `token`, `cookie`, `credential`, `api-key` or
       `auth-key` (also with `_` or without the separator) in the name, `psk`, `pin`, `wep-key0` - `wep-key3`, `mka-cak`,
-      `mka-ckn` and everything in the `vpn-secrets` and `secrets` sections.
+      `mka-ckn` and everything in the `vpn-secrets` and `secrets` sections. A name matches every setting that
+      contains it (case insensitive), so `key` censors all the settings with `key` in the name.
     DOC
     defaultto []
   end
@@ -50,11 +55,13 @@ Puppet::Type.newtype(:networkmanager_keyfile) do
     validate do |value|
       raise ArgumentError, 'The content must be a hash of sections' unless value.is_a?(Hash)
       raise ArgumentError, 'Each section of the content must be a hash of settings' unless value.values.all?(Hash)
+
       value.each do |section, settings|
         raise ArgumentError, "Invalid section name '#{section}'" if section.to_s.match?(%r{[\[\]\r\n]})
 
         settings.each_key do |key|
-          raise ArgumentError, "Invalid setting name '#{key}' in the section '#{section}'" if key.to_s.match?(%r{[=\r\n]})
+          # a name starting with # is a comment and one starting with [ is a section for GLib, so the setting would be lost
+          raise ArgumentError, "Invalid setting name '#{key}' in the section '#{section}'" if key.to_s.match?(%r{[=\r\n]|\A[#\[\s]|\A\z})
         end
       end
     end
@@ -91,12 +98,30 @@ Puppet::Type.newtype(:networkmanager_keyfile) do
     end
   end
 
+  # the values are checked here and not in the content property: the removal (ensure absent) needs no content
+  validate do
+    next if :absent == self[:ensure] || self[:content].nil?
+
+    self[:content].each do |section, settings|
+      settings.each do |key, value|
+        next if scalar_value?(value) || (value.is_a?(Array) && value.all? { |item| scalar_value?(item) })
+
+        raise ArgumentError, "The setting '#{key}' in the section '#{section}' must be a string, a number, a boolean or an array of them, not #{value.class}"
+      end
+    end
+  end
+
+  def scalar_value?(value)
+    value.nil? || [String, Numeric, TrueClass, FalseClass, Symbol].any? { |klass| value.is_a?(klass) }
+  end
+
   newproperty(:mode) do
     desc 'The octal mode of the file.'
     defaultto '0600'
-    munge { |value| format('%04o', value.to_s.to_i(8)) }
+    munge { |value| format('%04o', value.to_i(8)) }
     validate do |value|
-      raise ArgumentError, "Invalid mode '#{value}'" unless value.to_s =~ %r{\A[0-7]{3,4}\z}
+      raise ArgumentError, "The mode must be a string like '0600', not #{value.class}" unless value.is_a?(String)
+      raise ArgumentError, "Invalid mode '#{value}'" unless value.match?(%r{\A[0-7]{3,4}\z})
     end
   end
 

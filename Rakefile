@@ -21,7 +21,7 @@ rescue LoadError
       next if File.exist?(target)
 
       repo, ref = source.is_a?(Hash) ? source.values_at('repo', 'ref') : [source, nil]
-      sh(*['git', 'clone', '--depth', '1', *(ref ? ['--branch', ref] : []), repo, target])
+      sh('git', 'clone', '--depth', '1', *(ref ? ['--branch', ref] : []), repo, target)
     end
     link = File.join(modules, JSON.parse(File.read('metadata.json'))['name'].split(%r{[-/]}).last)
     FileUtils.ln_s(File.expand_path('.'), link) unless File.exist?(link)

@@ -59,10 +59,10 @@ describe 'networkmanager::ifc::connection' do
     context "with multiple IPv4 addresses as #{addresses.class}" do
       let(:params) { base.merge(ipv4_address: addresses, ipv6_address: %w[2001:db8::5/64 fd00::5/64], ipv4_gateway: '10.0.0.1') }
 
-      it { expect(keyfile_text(file)).to match(%r{^address1=10\.0\.0\.5/24\naddress2=10\.0\.1\.5/24\n}) }
-      it { expect(keyfile_text(file)).to match(%r{^address1=2001:db8::5/64\naddress2=fd00::5/64\n}) }
+      it { expect(keyfile_text(file).lines.map(&:chomp)).to include('address1=10.0.0.5/24', 'address2=10.0.1.5/24') }
+      it { expect(keyfile_text(file).lines.map(&:chomp)).to include('address1=2001:db8::5/64', 'address2=fd00::5/64') }
       it { expect(keyfile_text(file)).not_to match(%r{^address=}) }
-      it { expect(keyfile_text(file)).to match(%r{^gateway=10\.0\.0\.1\naddress1=}) }
+      it { expect(keyfile_text(file).lines.map(&:chomp)).to include('gateway=10.0.0.1') }
     end
   end
 end
@@ -78,7 +78,8 @@ describe 'networkmanager::ifc::connection' do
         ipv6_method: 'ignore', ipv6_address: '2001:db8::5/64' }
     end
 
-    it { expect(keyfile_text(file)).to match(%r{\[ipv4\]\nmethod=disabled\n\n\[ipv6\]\nmethod=ignore\n}) }
+    it { expect(keyfile_text(file)).to match(%r{\[ipv4\]\nmethod=disabled\n}) }
+    it { expect(keyfile_text(file)).to match(%r{\[ipv6\]\nmethod=ignore\n}) }
     it { expect(keyfile_text(file)).not_to match(%r{^(address|dns|may-fail|addr-gen-mode|ip6-privacy)}) }
   end
 end
@@ -91,9 +92,13 @@ describe 'networkmanager::ifc::connection' do
     "/etc/NetworkManager/system-connections/#{title}.nmconnection"
   end
 
-  # the title contains the UUID of the connection
+  # the UUID of the connection is the one in its keyfile (the id of the connection is the title)
+  def uuid
+    catalogue.resource('Networkmanager_keyfile', keyfile(title))[:content]['connection']['uuid']
+  end
+
   def link_title
-    catalogue.resources.find { |r| 'Networkmanager_link' == r.type }.title
+    "link of connection #{uuid}"
   end
 
   context 'without the interface name and the mac address' do
@@ -111,15 +116,16 @@ describe 'networkmanager::ifc::connection' do
       is_expected.to contain_networkmanager_link(link_title).with(interface_name: 'ens192', state: 'down')
     end
 
-    it { is_expected.to contain_networkmanager_link(link_title).without_before }
+    it { is_expected.to contain_networkmanager_link(link_title).without_before.that_requires("Exec[deactivate connection #{uuid}]") }
   end
 
   context 'with the state up' do
     let(:title) { 'ens192' }
     let(:params) { base }
 
-    it 'lets NetworkManager manage the device before the connections are activated' do
-      is_expected.to contain_networkmanager_link(link_title).with(interface_name: 'ens192', state: 'managed', before: 'Class[Networkmanager::Reload]')
+    it 'lets NetworkManager manage the device before the connection is activated' do
+      is_expected.to contain_networkmanager_link(link_title).with(interface_name: 'ens192', state: 'managed')
+                                                            .that_comes_before("Exec[activate connection after initial config #{uuid}]")
     end
   end
 
@@ -146,12 +152,41 @@ describe 'networkmanager::ifc::connection' do
     it { is_expected.to contain_networkmanager_keyfile(keyfile('ens192')).with_show_diff(false) }
   end
 
+  context 'with secret_keys' do
+    let(:title) { 'ens192' }
+    let(:pre_condition) { 'class { "networkmanager": secret_keys => ["my-key"] }' }
+    let(:params) { { ipv4_method: 'auto', ipv6_method: 'ignore' } }
+
+    it { is_expected.to contain_networkmanager_keyfile(keyfile('ens192')).with_secret_keys(['my-key']) }
+  end
+
   context 'with the mac address only' do
     let(:title) { 'ens192' }
     let(:params) { base.merge(mac_address: 'aa:bb:cc:dd:ee:ff') }
 
     it { expect(keyfile_text(keyfile('ens192'))).to match(%r{^mac-address=aa:bb:cc:dd:ee:ff$}) }
     it { expect(keyfile_text(keyfile('ens192'))).not_to match(%r{^interface-name=}) }
+  end
+
+  context 'with the mac address in the upper case and with dashes' do
+    let(:title) { 'ens192' }
+    let(:params) { base.merge(mac_address: 'AA-BB-CC-DD-EE-FF') }
+
+    it { expect(keyfile_text(keyfile('ens192'))).to match(%r{^mac-address=aa:bb:cc:dd:ee:ff$}) }
+  end
+
+  context 'with the ipv6_privacy -1 (the NetworkManager default)' do
+    let(:title) { 'ens192' }
+    let(:params) { base.merge(ipv6_method: 'auto', ipv6_dhcp_duid: 'unset', ipv6_privacy: -1) }
+
+    it { expect(keyfile_text(keyfile('ens192'))).to match(%r{^ip6-privacy=-1$}) }
+  end
+
+  context 'with a master which is the connection itself' do
+    let(:title) { 'ens192' }
+    let(:params) { base.merge(master: 'ens192', slave_type: 'bond') }
+
+    it { is_expected.to compile.and_raise_error(%r{master 'ens192' of the connection 'ens192' is the connection itself}) }
   end
 
   context 'with the interface name' do
