@@ -39,12 +39,11 @@
 
 This repository is the continuation of [jednoprsak/PuppetNetworkManagerModule](https://github.com/jednoprsak/PuppetNetworkManagerModule), which is not developed any more (v1.1.0 was the last release published there). The development, the releases, the issues and the pull requests are here. The name of the module (eg. for a `Puppetfile`) is `samuraiii-networkmanager` since 1.1.1, it was `jednoprsak-networkmanager`.
 
-This is a FOSS project, the work on it is done either in free time or as a part of a daily job which is not focused on developing this code. The issues will be fixed as soon as time allows, it can take more time than you would expect. The code is still actively used on 300+ machines, so any problems found are fixed and will eventually be shared here. If you have a problem please create an issue, or a pull request if you can.
-Writing e-mails to the authors won't help.
+This is a FOSS project, the work on it is done either in free time or as a part of a daily job which is not focused on developing this code. The issues will be fixed as soon as time allows, it can take more time than you would expect. The code is in production use on more than 300 machines, so the problems found are fixed and the fixes are published here. If you have a problem please create an issue, or a pull request if you can. Please report problems in the issue tracker, not by e-mail to the authors.
 
 ## Description
 
-You want to use our module because no one had written another module for using keyfiles yet (October 18, 2022) and we from Prague Academy of Physics computing farm geeks are the best underground team ever, but stop flexing. I hope that this module will be usable for you. The module installs NetworkManager, configures its config file, starts the service, creates keyfiles and pushes them inside NetworkManager via nmcli (and nmcli pushes them inside via dbus). It provides a few defined resources to create keyfiles for a connection (dhcp, static, ipv6, ipv4), bridge, bond and vlan, and a fallback defined resource for a user defined keyfile.
+The module manages NetworkManager with keyfiles. It installs NetworkManager, writes its configuration file and the keyfiles of the connections, starts the services, and loads the connections into the running NetworkManager with `nmcli` (which talks to it over D-Bus). It provides defined resources for the keyfiles of an ethernet connection (DHCP or static, IPv4 and IPv6), a bridge, a bond, a vlan and the slaves of bonds and bridges, and a fallback defined resource for a keyfile of any other type. It is developed for and used on the Prague Academy of Physics computing farm.
 
 ### Who it is for
 The module is made for **servers**. A server must be recognised by the network: the DHCP server has to hand out the same address to the same host after a reinstall, a reboot or a new profile, and the host must not change its identity on its own. That is why the defaults are the opposite of what a desktop distribution does:
@@ -254,7 +253,7 @@ git clone --depth 1 --branch v9.7.0 https://github.com/puppetlabs/puppetlabs-std
 bundle exec rake spec
 ```
 
-`PUPPET_GEM_VERSION` (eg. `'~> 7.0'`) or `OPENVOX_GEM_VERSION` selects the version of Puppet or OpenVox for the `bundle install`, the version of `stdlib` is the one you clone into `spec/fixtures/modules/stdlib` (`.fixtures.yml` pins `v9.7.0` for `rake spec_prep`, the CI clones the `STDLIB_REF` of its matrix).
+`PUPPET_GEM_VERSION` (eg. `'~> 7.0'`) or `OPENVOX_GEM_VERSION` selects the version of Puppet or OpenVox for the `bundle install`, the version of `stdlib` is the one you clone into `spec/fixtures/modules/stdlib` (`rake spec_prep` clones the default branch of stdlib when there is none, the CI clones the `STDLIB_REF` of its matrix first).
 
 OpenVox 8.24 and newer (including 9) do not work with `puppetlabs_spec_helper` and `puppet-syntax` (they depend on the `puppet` gem), so the `Gemfile` leaves them out when `OPENVOX_GEM_VERSION` is `8.x` or `9.x` and `rspec-puppet` is used directly:
 

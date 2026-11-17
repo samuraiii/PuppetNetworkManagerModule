@@ -87,7 +87,6 @@ define networkmanager::ifc::bond (
 ) {
   include networkmanager
 
-
   $uuid = networkmanager::connection_uuid($id)
   $port_settings = { 'connection' => networkmanager::port_settings($master, $slave_type, $id) }
   networkmanager::forbid_uuid_override($additional_config, $id)

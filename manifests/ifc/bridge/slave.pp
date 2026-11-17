@@ -33,7 +33,6 @@ define networkmanager::ifc::bridge::slave (
 ) {
   include networkmanager
 
-
   $uuid = networkmanager::connection_uuid($id)
 
   $int_mac_config = networkmanager::validate_ifc_name_and_mac(
