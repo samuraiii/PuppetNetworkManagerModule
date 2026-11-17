@@ -108,10 +108,17 @@ describe Puppet::Type.type(:networkmanager_keyfile).provider(:ruby) do
         preshared-key=BBBB
         [other]
         my-token-like=zzz
+        session-cookie=ck1
+        user-credentials=cr2
+        apikey=ak3
+        Api-Key=ak4
+        auth_key=ak5
+        authkey=ak6
+        author=bob
       INI
       censored = provider.censor(text)
-      %w[hunter2 abcde s3cret AAAA BBBB zzz here].each { |secret| expect(censored).not_to include(secret) }
-      expect(censored).to include('key-mgmt=wpa-psk', 'identity=alice', 'eap=peap')
+      %w[hunter2 abcde s3cret AAAA BBBB zzz here ck1 cr2 ak3 ak4 ak5 ak6].each { |secret| expect(censored).not_to include(secret) }
+      expect(censored).to include('key-mgmt=wpa-psk', 'identity=alice', 'eap=peap', 'author=bob')
       expect(censored).to include('psk=<redacted>', 'anything=<redacted>')
     end
   end

@@ -5,7 +5,7 @@
 function networkmanager::connection_uuid(
   String $id,
 ) >> String {
-  if $id =~ /^\h{8}-(\h{4}-){3}\h{12}$/ {
+  if $id =~ /\A\h{8}-(\h{4}-){3}\h{12}\z/ {
     $id
   }
   else {

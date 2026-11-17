@@ -1,6 +1,8 @@
-# This class is used to collect different keyfile activation exported resources and apply them.
+# This class is used to collect the virtual keyfile activation execs of the catalog and apply them.
 # Not to be used by user
 
 class networkmanager::reload {
-  Exec <<| tag == $networkmanager::activation_tag |>>
+  assert_private()
+
+  Exec <| tag == $networkmanager::activation_tag |>
 }

@@ -6,10 +6,10 @@
 #   $ine4terface_name = the connection interface name
 
 function networkmanager::validate_ifc_name_and_mac (
-  String                        $caller,
-  String                        $caller_title,
-  Variant[Undef, Stdlib::MAC]   $interface_mac,
-  Variant[Undef, String[3, 15]] $interface_name,
+  String                                   $caller,
+  String                                   $caller_title,
+  Optional[Stdlib::MAC]                    $interface_mac,
+  Optional[Networkmanager::Interface_name] $interface_name,
 ) >> Hash {
   if !($interface_mac or $interface_name) {
     fail("You need to provide either mac address or interface name for ${caller}(${$caller_title})")

@@ -37,8 +37,9 @@ Puppet::Type.newtype(:networkmanager_keyfile) do
   newparam(:secret_keys, array_matching: :all) do
     desc <<-DOC
       The names of the settings whose values are censored in the diffs, in addition to the built in ones: the keys with
-      `password`, `passphrase`, `secret`, `private-key`, `preshared-key` or `token` in the name, `psk`, `pin`,
-      `wep-key0` - `wep-key3`, `mka-cak`, `mka-ckn` and everything in the `vpn-secrets` and `secrets` sections.
+      `password`, `passphrase`, `secret`, `private-key`, `preshared-key`, `token`, `cookie`, `credential`, `api-key` or
+      `auth-key` (also with `_` or without the separator) in the name, `psk`, `pin`, `wep-key0` - `wep-key3`, `mka-cak`,
+      `mka-ckn` and everything in the `vpn-secrets` and `secrets` sections.
     DOC
     defaultto []
   end
@@ -49,6 +50,13 @@ Puppet::Type.newtype(:networkmanager_keyfile) do
     validate do |value|
       raise ArgumentError, 'The content must be a hash of sections' unless value.is_a?(Hash)
       raise ArgumentError, 'Each section of the content must be a hash of settings' unless value.values.all?(Hash)
+      value.each do |section, settings|
+        raise ArgumentError, "Invalid section name '#{section}'" if section.to_s.match?(%r{[\[\]\r\n]})
+
+        settings.each_key do |key|
+          raise ArgumentError, "Invalid setting name '#{key}' in the section '#{section}'" if key.to_s.match?(%r{[=\r\n]})
+        end
+      end
     end
 
     # only the checksum leaves the provider, the content can hold the secrets

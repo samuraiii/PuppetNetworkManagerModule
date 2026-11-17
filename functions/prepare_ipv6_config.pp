@@ -21,7 +21,7 @@ function networkmanager::prepare_ipv6_config(
   Optional[String]                                                   $ipv6_dhcp_duid,
 ) >> Hash {
   $details = $ipv6_method ? {
-    /^(ignore|disabled)$/ => {},
+    /\A(ignore|disabled)\z/ => {},
     default               => {
       'addr-gen-mode' => $ipv6_addr_gen_mode,
       'ip6-privacy'   => $ipv6_privacy,

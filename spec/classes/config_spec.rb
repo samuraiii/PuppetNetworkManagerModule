@@ -42,4 +42,42 @@ describe 'networkmanager::config' do
 
     it { is_expected.to contain_networkmanager_keyfile('/etc/NetworkManager/NetworkManager.conf').with_show_diff(false).with_secret_keys(['my-key']) }
   end
+
+  context 'with the unmanaged devices and plugins' do
+    let(:facts) { nm_test_facts('AlmaLinux', '9') }
+    let(:pre_condition) { 'class { "networkmanager": unmanaged_devices => ["docker*", "veth?", "00:11:22:33:44:55"], plugins => ["keyfile", "ifcfg-rh"] }' }
+
+    it { is_expected.to compile.with_all_deps }
+  end
+
+  context 'with a separator in an unmanaged device' do
+    let(:facts) { nm_test_facts('AlmaLinux', '9') }
+    let(:pre_condition) { 'class { "networkmanager": unmanaged_devices => ["eth0;interface-name:br0"] }' }
+
+    it { is_expected.to compile.and_raise_error(%r{unmanaged_devices}) }
+  end
+
+  context 'with a separator in a plugin' do
+    let(:facts) { nm_test_facts('AlmaLinux', '9') }
+    let(:pre_condition) { 'class { "networkmanager": plugins => ["keyfile,evil"] }' }
+
+    it { is_expected.to compile.and_raise_error(%r{plugins}) }
+  end
+
+  context 'with use_internal_resolv_conf => false' do
+    let(:facts) { nm_test_facts('AlmaLinux', '9') }
+    let(:pre_condition) { 'class { "networkmanager": use_internal_resolv_conf => false }' }
+
+    it { is_expected.to contain_exec('replace the resolv.conf link by a file').with_provider('shell').with_user('root').that_comes_before('File[/etc/resolv.conf]') }
+    it { is_expected.to contain_exec('replace the resolv.conf link by a file').with_onlyif(['/usr/bin/test -L /etc/resolv.conf', '/usr/bin/test -e /etc/resolv.conf']) }
+    it { is_expected.to contain_file('/etc/resolv.conf').with_ensure('file').with_replace(false).with_mode('0644') }
+  end
+
+  context 'with use_internal_resolv_conf => stub' do
+    let(:facts) { nm_test_facts('AlmaLinux', '9') }
+    let(:pre_condition) { 'class { "networkmanager": use_internal_resolv_conf => "stub" }' }
+
+    it { is_expected.to contain_file('/etc/resolv.conf').with_ensure('link').with_target('/run/NetworkManager/resolv.conf') }
+    it { is_expected.not_to contain_exec('replace the resolv.conf link by a file') }
+  end
 end

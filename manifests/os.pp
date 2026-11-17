@@ -3,6 +3,8 @@
 #
 # @summary OS specific variables for the networkmanager module
 class networkmanager::os () {
+  assert_private()
+
   $os_family = downcase($facts['os']['family'])
   case $os_family {
     'archlinux': {
