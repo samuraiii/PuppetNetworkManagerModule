@@ -20,6 +20,9 @@ describe 'networkmanager' do
   end
 
   it 'finds at least one operating system of metadata.json in facterdb' do
+    # facterdb has no facts of the Facter 3 and 4.0 which Puppet 6 comes with, so there is nothing to find there
+    skip 'facterdb has no facts for the Facter of Puppet 6' if Gem::Version.new(Puppet.version) < Gem::Version.new('7.0.0')
+
     expect(on_supported_os).not_to be_empty
   end
 end
