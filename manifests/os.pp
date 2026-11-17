@@ -5,7 +5,9 @@
 class networkmanager::os () {
   assert_private()
 
-  $os_family = downcase($facts['os']['family'])
+  # a host without the os.family fact takes the unsupported way (fails, or the warning with ignore_unsupported_os)
+  $family = String($facts.dig('os', 'family'))
+  $os_family = downcase($family)
   case $os_family {
     'archlinux': {
       $package_name = 'networkmanager'
@@ -24,7 +26,15 @@ class networkmanager::os () {
       $extra_packages = []
     }
     default: {
-      fail("The OS family '${facts['os']['family']}' is not supported by the networkmanager module")
+      if $networkmanager::ignore_unsupported_os {
+        # no package is managed, NetworkManager has to be installed by other means
+        warning("The OS family '${family}' is not supported by the networkmanager module, the package is not managed")
+        $package_name = undef
+        $extra_packages = []
+      }
+      else {
+        fail("The OS family '${family}' is not supported by the networkmanager module (ignore_unsupported_os => true skips the package installation)")
+      }
     }
   }
 }

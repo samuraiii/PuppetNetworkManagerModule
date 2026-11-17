@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require 'digest'
 require 'etc'
 require 'tempfile'
@@ -17,7 +19,7 @@ Puppet::Type.type(:networkmanager_keyfile).provide(:ruby) do
 
   # the keys and the sections whose values are censored in the diffs
   def self.secret_key
-    %r{password|passphrase|secret|private-key|preshared-key|token|cookie|credential|api[-_]?key|auth[-_]?key|\A(?:psk|pin|wep-key[0-3]|mka-c[ak]n?k?)\z}i
+    %r{password|passphrase|secret|private-key|preshared-key|token|cookie|credential|api[-_]?key|auth[-_]?key|\A(?:psk|pin|wep-key[0-3]|mka-(?:cak|ckn))\z}i
   end
 
   def self.secret_sections
@@ -30,19 +32,23 @@ Puppet::Type.type(:networkmanager_keyfile).provide(:ruby) do
 
   # the files of the connections in the default directory
   def self.instances
-    Dir.glob(File.join(connections_dir, '*')).select { |file| File.file?(file) }.sort.map { |file| new(name: file) }
+    Dir.glob(File.join(connections_dir, '*.nmconnection')).select { |file| File.file?(file) }.sort.map { |file| new(name: file) }
   end
 
-  # whether the installed NetworkManager (1.20+) accepts the `disabled` IPv6 method: an invalid value makes nmcli fail
-  # before anything is created and list the valid ones. Unknown (no nmcli, an unknown output) is taken as supported.
+  # whether the installed NetworkManager (1.20+) accepts the `disabled` IPv6 method, from `nmcli --version`
+  # (a read only question). A NetworkManager that can not be asked fails the resource: guessing "supported" would
+  # write a keyfile which NetworkManager refuses as a whole.
   def self.ipv6_disabled_supported?
     return @ipv6_disabled_supported if defined?(@ipv6_disabled_supported)
 
     nmcli = Puppet::Util.which('nmcli')
-    command = [nmcli, 'connection', 'add', 'type', 'ethernet', 'ipv6.method', 'probe']
-    output = nmcli.nil? ? '' : Puppet::Util::Execution.execute(command, failonfail: false, combine: true).to_s
-    list = output.match(%r{not among \[([^\]]*)\]})
-    @ipv6_disabled_supported = list.nil? || list[1].split(%r{,\s*}).include?('disabled')
+    raise Puppet::Error, 'nmcli not found, can not tell whether NetworkManager supports the "disabled" IPv6 method, use the "ignore" method' if nmcli.nil?
+
+    output = Puppet::Util::Execution.execute([nmcli, '--version'], failonfail: false, combine: true).to_s
+    version = output[%r{version\s+(\d+(?:\.\d+)*)}, 1]
+    raise Puppet::Error, "can not read the NetworkManager version from '#{output.strip}', use the \"ignore\" IPv6 method" if version.nil?
+
+    @ipv6_disabled_supported = Gem::Version.new(version) >= Gem::Version.new('1.20')
   end
 
   def path
@@ -80,7 +86,8 @@ Puppet::Type.type(:networkmanager_keyfile).provide(:ruby) do
 
   def write(sections)
     text = render(sections)
-    Puppet::Util.replace_file(path, 0o600) { |file| file.write(text) }
+    mode = resource[:mode] ? resource[:mode].to_i(8) : 0o600
+    Puppet::Util.replace_file(path, mode) { |file| file.write(text) }
   end
 
   # the diff of the file on the disk and the new content, both with the secrets censored
@@ -103,7 +110,7 @@ Puppet::Type.type(:networkmanager_keyfile).provide(:ruby) do
 
   def secret_key?(section, key)
     self.class.secret_sections.include?(section) || self.class.secret_key.match?(key) ||
-      Array(resource[:secret_keys]).include?(key)
+      Array(resource[:secret_keys]).map(&:downcase).include?(key.downcase)
   end
 
   # replaces the values of the secret settings of a rendered keyfile
@@ -192,6 +199,8 @@ Puppet::Type.type(:networkmanager_keyfile).provide(:ruby) do
 
   def owner=(name)
     File.chown(Etc.getpwnam(name).uid, nil, path)
+  rescue ArgumentError
+    raise Puppet::Error, "The user '#{name}' of #{path} does not exist"
   end
 
   def group
@@ -205,5 +214,7 @@ Puppet::Type.type(:networkmanager_keyfile).provide(:ruby) do
 
   def group=(name)
     File.chown(nil, Etc.getgrnam(name).gid, path)
+  rescue ArgumentError
+    raise Puppet::Error, "The group '#{name}' of #{path} does not exist"
   end
 end

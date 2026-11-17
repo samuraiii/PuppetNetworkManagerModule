@@ -44,5 +44,6 @@ describe 'networkmanager::ifc::bridge' do
     let(:params) { { mac_address: 'aa:bb:cc:dd:ee:ff' } }
 
     it { expect(keyfile_text('/etc/NetworkManager/system-connections/br0.nmconnection')).to match(%r{^dhcp-duid=00:03:00:01:aa:bb:cc:dd:ee:ff$}) }
+    it { expect(keyfile_text('/etc/NetworkManager/system-connections/br0.nmconnection')).to match(%r{\[ethernet\]\ncloned-mac-address=aa:bb:cc:dd:ee:ff$}) }
   end
 end

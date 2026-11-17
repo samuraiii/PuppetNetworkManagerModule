@@ -16,10 +16,11 @@ NM_OS_FAMILY = {
   'Gentoo' => 'Gentoo',
   'Manjaro' => 'Archlinux',
   'Ubuntu' => 'Debian',
-}.tap { |h| h.default = 'RedHat' }.freeze
+}.merge(%w[AlmaLinux Amazon CentOS Fedora OracleLinux RedHat Rocky Scientific].to_h { |name| [name, 'RedHat'] }).freeze
 
 # Builds a facts hash for the given OS.
-def nm_test_facts(name, release, family = NM_OS_FAMILY[name])
+# an OS name that is not in NM_OS_FAMILY is an error of the spec (or a family missing here), not a RedHat
+def nm_test_facts(name, release, family = NM_OS_FAMILY.fetch(name))
   {
     'kernel' => 'Linux',
     'os' => {
@@ -28,6 +29,7 @@ def nm_test_facts(name, release, family = NM_OS_FAMILY[name])
       'release' => { 'major' => release, 'full' => release },
     },
     'networking' => { 'hostname' => 'testhost', 'fqdn' => 'testhost.example.com' },
+    'service_provider' => 'systemd',
   }
 end
 

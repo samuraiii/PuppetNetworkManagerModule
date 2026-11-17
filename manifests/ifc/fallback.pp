@@ -18,21 +18,20 @@
 #   state of the interface (UP/DOWN) not relevant when $ensure == 'absent' DEFAULT: 'up'
 # @param id
 #   the name of the connection DEFAULT: $title of the resource
+# @param interface_name
+#   name of the device of the connection, needed only to keep its link in the state of the connection (it is not written to the keyfile,
+#   set the connection.interface-name in the $config for it)
+# @param mac_address
+#   MAC address of the device of the connection, the same use as the $interface_name (it is not written to the keyfile)
 define networkmanager::ifc::fallback (
   Hash                      $config,
   Enum['absent', 'present'] $ensure = present,
   Enum['up', 'down']        $state = 'up',
   String                    $id = $title,
+  Optional[Networkmanager::Interface_name] $interface_name = undef,
+  Optional[Stdlib::MAC]     $mac_address = undef,
 ) {
   include networkmanager
-  Networkmanager::Ifc::Fallback[$title] ~> Class['networkmanager']
-  Networkmanager_keyfile['/etc/NetworkManager/NetworkManager.conf'] -> Networkmanager::Ifc::Fallback[$title]
-  if $id !~ String[3, $networkmanager::max_length_of_connection_id] {
-    fail("The connection \$id must have length from 3 to ${networkmanager::max_length_of_connection_id} characters")
-  }
-  if $id !~ Networkmanager::Connection_id {
-    fail("The connection \$id may contain only printable ASCII characters except '/' and '\\' and must not start with a dot")
-  }
 
   $uuid = networkmanager::connection_uuid($id)
 
@@ -68,20 +67,21 @@ define networkmanager::ifc::fallback (
 
   if 'connection' in $keyfile_contents
   and 'interface-name' in $keyfile_contents['connection']
-  and 15 < $keyfile_contents['connection']['interface-name'].length() {
+  and 15 < String($keyfile_contents['connection']['interface-name']).length() {
     fail("The 'connection.interface-name' for connection '${id}' can not be longer than 15 characters!")
   }
 
-  networkmanager::connection_keyfile_manage {
+  $master_uuids = $masters.values.map |$m| { $m['master'] }
+  $parent_uuids = $parents.values.map |$p| { $p['parent'] }
+  $after = $master_uuids + $parent_uuids
+
+  networkmanager::connection_manage {
     $id:
-      ensure  => $ensure,
-      content => $keyfile_contents;
+      ensure         => $ensure,
+      state          => $state,
+      content        => $keyfile_contents,
+      after          => $after,
+      interface_name => $interface_name,
+      mac_address    => $mac_address;
   }
-
-  if $ensure == present {
-    networkmanager::activate_connection($uuid, $id, $state)
-  }
-
-  include networkmanager::reload
-  Networkmanager::Ifc::Fallback[$title] ~> Class['networkmanager::reload']
 }

@@ -1,0 +1,43 @@
+# The Ruby code of the module: the types and the providers (lib/) and the specs. Puppet 6 runs Ruby 2.5.
+AllCops:
+  TargetRubyVersion: 2.5
+  NewCops: disable
+  SuggestExtensions: false
+  Exclude:
+    - 'spec/fixtures/**/*'
+    - 'vendor/**/*'
+
+# the literal is on the left in the comparisons (a style of the module): 'str' == value
+Style/YodaCondition:
+  EnforcedStyle: require_for_equality_operators_only
+
+# the code is not measured by the size of the methods and the blocks (the specs are long by nature)
+Metrics:
+  Enabled: false
+
+Layout/LineLength:
+  Max: 200
+
+Style/Documentation:
+  Enabled: false
+
+# %r{} for every regular expression, as the module does
+Style/RegexpLiteral:
+  EnforcedStyle: percent_r
+  AllowInnerSlashes: true
+
+# the trailing comma of a multi-line literal
+Style/TrailingCommaInHashLiteral:
+  EnforcedStyleForMultiline: comma
+Style/TrailingCommaInArrayLiteral:
+  EnforcedStyleForMultiline: comma
+
+# insync?(is) is the name used by Puppet
+Naming/MethodParameterName:
+  AllowedNames: ['is', 'id', 'up']
+
+# the standard header of spec_helper.rb (rspec-puppet-facts)
+Style/MixinUsage:
+  Exclude: ['spec/spec_helper.rb']
+Style/RescueStandardError:
+  Exclude: ['spec/spec_helper.rb']
