@@ -54,7 +54,7 @@
 #   $additional_config hash and it will be merged with other parameters.
 #   The additional_config has the HIGHEST priority when merged!
 #   ie: it will override the defined values of the connection in case of the conflict
-#   A setting with an empty string value ('') is not written, like an unset one; the connection.id, uuid, interface-name, master and slave-type can not be overridden
+#   A setting with an empty string value ('') is written as an empty value (key=), only an unset (undef) one is not written; the connection.id, uuid, interface-name, master and slave-type can not be overridden
 define networkmanager::ifc::vlan (
   Integer[1, 4094]          $vlan_id,
   String                    $vlan_parent,

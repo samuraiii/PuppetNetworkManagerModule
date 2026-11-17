@@ -100,6 +100,13 @@ describe 'networkmanager' do
     it { is_expected.to contain_class('networkmanager::service').that_requires('Class[networkmanager::config]') }
   end
 
+  context 'with the min_length_of_connection_id longer than the max_length_of_connection_id' do
+    let(:facts) { nm_test_facts('AlmaLinux', '9') }
+    let(:params) { { min_length_of_connection_id: 20 } }
+
+    it { is_expected.to compile.and_raise_error(%r{min_length_of_connection_id \(20\) is longer}) }
+  end
+
   context 'with a version' do
     let(:params) { { version: '1.46.0-1.el9' } }
 

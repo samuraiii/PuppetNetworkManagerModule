@@ -14,8 +14,10 @@ describe 'networkmanager::mac_address_settings' do
     it { is_expected.to run.with_params('ethernet', mac.upcase).and_return({ 'ethernet' => { 'mac-address' => mac } }) }
   end
 
-  it { is_expected.to run.with_params('bond', 'aa:bb:cc:dd:ee:ff').and_raise_error(%r{can not be set for the connection type 'bond'}) }
-  it { is_expected.to run.with_params('bond', nil).and_return({}) }
+  it { is_expected.to run.with_params('bond', 'AA-BB-CC-DD-EE-FF').and_return({ 'ethernet' => { 'cloned-mac-address' => 'aa:bb:cc:dd:ee:ff' } }) }
+  it { is_expected.to run.with_params('bridge', 'aa:bb:cc:dd:ee:ff').and_return({ 'ethernet' => { 'cloned-mac-address' => 'aa:bb:cc:dd:ee:ff' } }) }
+  it { is_expected.to run.with_params('vlan', 'aa:bb:cc:dd:ee:ff').and_raise_error(%r{can not be set for the connection type 'vlan'}) }
+  it { is_expected.to run.with_params('vlan', nil).and_return({}) }
 end
 
 describe 'networkmanager::forbid_uuid_override' do

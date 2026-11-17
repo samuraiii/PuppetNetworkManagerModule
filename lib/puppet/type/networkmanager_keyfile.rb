@@ -43,8 +43,8 @@ Puppet::Type.newtype(:networkmanager_keyfile) do
       The names of the settings whose values are censored in the diffs, in addition to the built in ones: the keys with
       `password`, `passphrase`, `secret`, `private-key`, `preshared-key`, `token`, `cookie`, `credential`, `api-key` or
       `auth-key` (also with `_` or without the separator) in the name, `psk`, `pin`, `wep-key0` - `wep-key3`, `mka-cak`,
-      `mka-ckn` and everything in the `vpn-secrets` and `secrets` sections. A name matches every setting that
-      contains it (case insensitive), so `key` censors all the settings with `key` in the name.
+      `mka-ckn` and everything in the `vpn-secrets` and `secrets` sections. The names in `secret_keys` are
+      matched exactly (case insensitive), the built in ones also as a part of the name.
     DOC
     defaultto []
   end

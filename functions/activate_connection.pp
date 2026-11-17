@@ -15,13 +15,13 @@
 #   uuids of the connections (master, parent) which are activated before this one when they are managed by this module
 function networkmanager::activate_connection (
   Pattern[/\A\h{8}-(\h{4}-){3}\h{12}\z/]        $uuid,
-  String[3]                                     $id,
+  Networkmanager::Connection_id                 $id,
   Enum['up', 'down']                            $state,
   Enum['absent', 'present']                     $ensure = 'present',
   Array[Pattern[/\A\h{8}-(\h{4}-){3}\h{12}\z/]] $after = [],
 ) {
   $keyfile = Networkmanager_keyfile["${networkmanager::connections_dir}/${id}.nmconnection"]
-  $is_active = "/usr/bin/nmcli -t -f GENERAL con show ${uuid} | /usr/bin/grep 'GENERAL.STATE:activated'"
+  $is_active = "/usr/bin/nmcli -t -f GENERAL con show ${uuid} | /usr/bin/grep -qx 'GENERAL.STATE:activated'"
 
   if 'absent' == $ensure {
     @exec {

@@ -29,8 +29,8 @@ define networkmanager::connection_manage (
   include networkmanager
   Class['networkmanager'] -> Networkmanager::Connection_manage[$title]
 
-  if $title !~ String[3, $networkmanager::max_length_of_connection_id] {
-    fail("The connection \$id must have length from 3 to ${networkmanager::max_length_of_connection_id} characters")
+  if $title !~ String[$networkmanager::min_length_of_connection_id, $networkmanager::max_length_of_connection_id] {
+    fail("The connection \$id must have length from ${networkmanager::min_length_of_connection_id} to ${networkmanager::max_length_of_connection_id} characters")
   }
   if $title !~ Networkmanager::Connection_id {
     fail("The connection \$id may contain only printable ASCII characters except '/' and '\\' and must not start with a dot")

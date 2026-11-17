@@ -9,7 +9,7 @@
 # @param interface_name
 #   name of the connection interface DEFAULT: $title of the resource
 # @param mac_address
-#   the mac of the interface for the connection
+#   the MAC address of the interface, written as the ethernet.cloned-mac-address (the MAC address the bond/bridge gets) and used to build the DHCP DUID
 # @param master
 #   $id or UUID of the connection master if applicable, the $slave_type is required with it
 # @param slave_type
@@ -51,7 +51,7 @@
 #   $additional_config hash and it will be merged with other parameters.
 #   The additional_config has the HIGHEST priority when merged!
 #   ie: it will override the defined values of the connection in case of the conflict
-#   A setting with an empty string value ('') is not written, like an unset one; the connection.id, uuid, interface-name, master and slave-type can not be overridden
+#   A setting with an empty string value ('') is written as an empty value (key=), only an unset (undef) one is not written; the connection.id, uuid, interface-name, master and slave-type can not be overridden
 define networkmanager::ifc::bridge (
   Enum['absent', 'present']                                     $ensure = present,
   Enum['up', 'down']                                            $state = 'up',
@@ -99,7 +99,7 @@ define networkmanager::ifc::bridge (
         'stp'           => $bridge_stp,
         'forward-delay' => $bridge_forward_delay,
       },
-    }),
+    }) + networkmanager::mac_address_settings('bridge', $mac_address),
     $port_settings,
     networkmanager::prepare_ipv4_config($ipv4_method, $ipv4_address, $ipv4_gateway, $ipv4_dns, $ipv4_may_fail),
     networkmanager::prepare_ipv6_config(

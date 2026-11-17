@@ -21,7 +21,7 @@ describe 'networkmanager::ifc::connection' do
 
     it 'deactivates the connection before its keyfile is removed' do
       is_expected.to contain_exec("deactivate connection #{uuid}")
-        .with_onlyif(%r{nmcli -t -f GENERAL con show #{uuid} \| /usr/bin/grep 'GENERAL.STATE:activated'})
+        .with_onlyif(%r{nmcli -t -f GENERAL con show #{uuid} \| /usr/bin/grep -qx 'GENERAL.STATE:activated'})
         .with_command(%r{nmcli connection down #{uuid}\z})
         .that_comes_before("Networkmanager_keyfile[#{path}]")
     end

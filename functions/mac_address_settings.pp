@@ -1,4 +1,6 @@
 # Returns the keyfile settings with the MAC address of the device, in the section which belongs to the type of the connection.
+# The ethernet and the wifi connection are bound to the MAC address (mac-address); a bond and a bridge are virtual
+# devices, which can only get a MAC address (ethernet.cloned-mac-address), so that one is written for them.
 # The MAC address of a connection type which has no section known to the module is refused, put it
 # into the additional_config of the connection instead.
 # @param type
@@ -14,15 +16,19 @@ function networkmanager::mac_address_settings(
     $result
   }
   else {
+    $setting = $type ? {
+      /\A(bond|bridge)\z/ => 'cloned-mac-address',
+      default             => 'mac-address',
+    }
     $section = $type ? {
-      /\A(ethernet|802-3-ethernet)\z/ => 'ethernet',
-      /\A(wifi|802-11-wireless)\z/    => '802-11-wireless',
-      default                         => undef,
+      /\A(ethernet|802-3-ethernet|bond|bridge)\z/ => 'ethernet',
+      /\A(wifi|802-11-wireless)\z/ => '802-11-wireless',
+      default                      => undef,
     }
     if undef == $section {
       fail("The mac_address can not be set for the connection type '${type}', set the mac-address in the section of the type with the additional_config")
     }
-    $settings = { $section => { 'mac-address' => networkmanager::normalize_mac($mac_address) } }
+    $settings = { $section => { $setting => networkmanager::normalize_mac($mac_address) } }
     $settings
   }
 }

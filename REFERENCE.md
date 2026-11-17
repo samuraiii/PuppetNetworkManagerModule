@@ -42,14 +42,14 @@
 * [`networkmanager::connection_uuid`](#networkmanager--connection_uuid): Returns stable connection uuid unless connection $id is uuid already.
 * [`networkmanager::dns_list`](#networkmanager--dns_list): Converts the DNS servers to the string used by the keyfile: the addresses separated and terminated by a semicolon. The string (the legacy for
 * [`networkmanager::forbid_uuid_override`](#networkmanager--forbid_uuid_override): Fails when the additional_config of a connection replaces a connection setting which the module computes and relies on: the uuid (the connect
-* [`networkmanager::mac_address_settings`](#networkmanager--mac_address_settings): Returns the keyfile settings with the MAC address of the device, in the section which belongs to the type of the connection. The MAC address 
+* [`networkmanager::mac_address_settings`](#networkmanager--mac_address_settings): Returns the keyfile settings with the MAC address of the device, in the section which belongs to the type of the connection. The ethernet and
 * [`networkmanager::normalize_mac`](#networkmanager--normalize_mac): Returns the MAC address in the form NetworkManager and the DUIDs use: lowercase hex digit pairs separated by colons. Only the hex digits of t
 * [`networkmanager::port_settings`](#networkmanager--port_settings): Returns the connection settings of a connection which is a port of a controller (the master): the UUID of the master and the slave-type. Netw
 * [`networkmanager::prepare_ipv4_config`](#networkmanager--prepare_ipv4_config): Prepares the "ipv4" section of the keyfile. Only the method is written when the IPv4 is disabled, the other settings would have no effect. Ba
 * [`networkmanager::prepare_ipv6_config`](#networkmanager--prepare_ipv6_config): Prepares the "ipv6" section of the keyfile. Only the method is written when the IPv6 is ignored or disabled, the other settings would have no
 * [`networkmanager::reload_connection`](#networkmanager--reload_connection): Reloads the connections and changes the state of the connection through nmcli, after the NetworkManager D-Bus service answers. The wait is li
 * [`networkmanager::resolve_ipv6_duid`](#networkmanager--resolve_ipv6_duid): Returns the IPv6 DHCP DUID to write to the keyfile of the connection, undef when nothing should be written. The DUID is written only for the 
-* [`networkmanager::validate_ifc_name_and_mac`](#networkmanager--validate_ifc_name_and_mac): Validates that the connection has at least one of 'mac address' or 'interface name' supplied
+* [`networkmanager::validate_ifc_name_and_mac`](#networkmanager--validate_ifc_name_and_mac): Validates that the connection has at least one of 'mac address' or 'interface name' supplied. A connection which is removed (ensure absent) n
 
 ### Data types
 
@@ -94,6 +94,7 @@ The following parameters are available in the `networkmanager` class:
 * [`wait_online`](#-networkmanager--wait_online)
 * [`use_internal_resolv_conf`](#-networkmanager--use_internal_resolv_conf)
 * [`plugins`](#-networkmanager--plugins)
+* [`min_length_of_connection_id`](#-networkmanager--min_length_of_connection_id)
 * [`max_length_of_connection_id`](#-networkmanager--max_length_of_connection_id)
 * [`duid_prefix`](#-networkmanager--duid_prefix)
 * [`ipv6_dhcp_duid_default`](#-networkmanager--ipv6_dhcp_duid_default)
@@ -164,7 +165,7 @@ Default value: `[]`
 
 Data type: `Boolean`
 
-enable the NetworkManager-wait-online service DEFAULT: true, false stops and disables it on systemd hosts and leaves other service managers alone
+enable the NetworkManager-wait-online service DEFAULT: true. Only on systemd hosts (the service_provider fact of stdlib), the unit does not exist elsewhere and is not managed
 
 Default value: `true`
 
@@ -184,9 +185,17 @@ should we use different plugins to get network config data (NOT RECOMMENDED TO C
 
 Default value: `['keyfile']`
 
+##### <a name="-networkmanager--min_length_of_connection_id"></a>`min_length_of_connection_id`
+
+Data type: `Integer[1]`
+
+Shortest name of the connection allowed (the connection $id is the name of its keyfile). DEFAULT: 1 character
+
+Default value: `1`
+
 ##### <a name="-networkmanager--max_length_of_connection_id"></a>`max_length_of_connection_id`
 
-Data type: `Integer[3]`
+Data type: `Integer[1]`
 
 Limit the name of the connection to this length. DEFAULT: 15 characters
 to comply with kernel interface name limits since the connection $id is used as default
@@ -227,8 +236,7 @@ Default value: `true`
 Data type: `Array[String]`
 
 names of the settings whose values are censored in the diffs in addition to the built in ones (passwords, psk, wep keys,
-private keys, everything in the vpn-secrets section, ...) DEFAULT: []. A name matches every setting that contains it (case insensitive),
-so `key` censors all the settings with `key` in the name
+private keys, everything in the vpn-secrets section, ...) DEFAULT: []. The names are matched exactly (case insensitive)
 
 Default value: `[]`
 
@@ -397,8 +405,9 @@ The following parameters are available in the `networkmanager::service` class:
 
 Data type: `Boolean`
 
-Taken from `$networkmanager::wait_online`, `false` stops and disables the wait-online unit on systemd hosts, it
-leaves the service manager of other hosts alone
+Taken from `$networkmanager::wait_online`. The wait-online unit exists only with systemd (the `service_provider` fact of
+stdlib is `systemd`): `true` starts and enables it, `false` stops and disables it there, other service managers
+(OpenRC, ...) and hosts without the fact have no such unit and it is not managed
 
 Default value: `$networkmanager::wait_online`
 
@@ -612,7 +621,7 @@ Default value: `$title`
 
 Data type: `Optional[Stdlib::MAC]`
 
-the mac of the interface for the connection
+the MAC address of the interface, written as the ethernet.cloned-mac-address (the MAC address the bond/bridge gets) and used to build the DHCP DUID
 
 Default value: `undef`
 
@@ -769,7 +778,7 @@ In the case when you want to specify special not listed parameters you can add t
 $additional_config hash and it will be merged with other parameters.
 The additional_config has the HIGHEST priority when merged!
 ie: it will override the defined values of the connection in case of the conflict
-A setting with an empty string value ('') is not written, like an unset one; the connection.id, uuid, interface-name, master and slave-type can not be overridden
+A setting with an empty string value ('') is written as an empty value (key=), only an unset (undef) one is not written; the connection.id, uuid, interface-name, master and slave-type can not be overridden
 
 Default value: `{}`
 
@@ -853,7 +862,7 @@ In the case when you want to specify special not listed parameters you can add t
 $additional_config hash and it will be merged with other parameters.
 The additional_config has the HIGHEST priority when merged!
 ie: it will override the defined values of the connection in case of the conflict
-A setting with an empty string value ('') is not written, like an unset one; the connection.id, uuid, interface-name, master and slave-type can not be overridden
+A setting with an empty string value ('') is written as an empty value (key=), only an unset (undef) one is not written; the connection.id, uuid, interface-name, master and slave-type can not be overridden
 
 Default value: `{}`
 
@@ -925,7 +934,7 @@ Default value: `$title`
 
 Data type: `Optional[Stdlib::MAC]`
 
-the mac of the interface for the connection
+the MAC address of the interface, written as the ethernet.cloned-mac-address (the MAC address the bond/bridge gets) and used to build the DHCP DUID
 
 Default value: `undef`
 
@@ -1075,7 +1084,7 @@ In the case when you want to specify special not listed parameters you can add t
 $additional_config hash and it will be merged with other parameters.
 The additional_config has the HIGHEST priority when merged!
 ie: it will override the defined values of the connection in case of the conflict
-A setting with an empty string value ('') is not written, like an unset one; the connection.id, uuid, interface-name, master and slave-type can not be overridden
+A setting with an empty string value ('') is written as an empty value (key=), only an unset (undef) one is not written; the connection.id, uuid, interface-name, master and slave-type can not be overridden
 
 Default value: `{}`
 
@@ -1159,7 +1168,7 @@ In the case when you want to specify special not listed parameters you can add t
 $additional_config hash and it will be merged with other parameters.
 The additional_config has the HIGHEST priority when merged!
 ie: it will override the defined values of the connection in case of the conflict
-A setting with an empty string value ('') is not written, like an unset one; the connection.id, uuid, interface-name, master and slave-type can not be overridden
+A setting with an empty string value ('') is written as an empty value (key=), only an unset (undef) one is not written; the connection.id, uuid, interface-name, master and slave-type can not be overridden
 
 Default value: `{}`
 
@@ -1372,7 +1381,7 @@ In the case when you want to specify special not listed parameters you can add t
 $additional_config hash and it will be merged with other parameters.
 The additional_config has the HIGHEST priority when merged!
 ie: it will override the defined values of the connection in case of the conflict
-A setting with an empty string value ('') is not written, like an unset one; the connection.id, uuid, interface-name, master and slave-type can not be overridden
+A setting with an empty string value ('') is written as an empty value (key=), only an unset (undef) one is not written; the connection.id, uuid, interface-name, master and slave-type can not be overridden
 
 Default value: `{}`
 
@@ -1672,7 +1681,7 @@ In the case when you want to specify special not listed parameters you can add t
 $additional_config hash and it will be merged with other parameters.
 The additional_config has the HIGHEST priority when merged!
 ie: it will override the defined values of the connection in case of the conflict
-A setting with an empty string value ('') is not written, like an unset one; the connection.id, uuid, interface-name, master and slave-type can not be overridden
+A setting with an empty string value ('') is written as an empty value (key=), only an unset (undef) one is not written; the connection.id, uuid, interface-name, master and slave-type can not be overridden
 
 Default value: `{}`
 
@@ -1750,8 +1759,8 @@ will usually discover the appropriate provider for your platform.
 The names of the settings whose values are censored in the diffs, in addition to the built in ones: the keys with
 `password`, `passphrase`, `secret`, `private-key`, `preshared-key`, `token`, `cookie`, `credential`, `api-key` or
 `auth-key` (also with `_` or without the separator) in the name, `psk`, `pin`, `wep-key0` - `wep-key3`, `mka-cak`,
-`mka-ckn` and everything in the `vpn-secrets` and `secrets` sections. A name matches every setting that
-contains it (case insensitive), so `key` censors all the settings with `key` in the name.
+`mka-ckn` and everything in the `vpn-secrets` and `secrets` sections. The names in `secret_keys` are
+matched exactly (case insensitive), the built in ones also as a part of the name.
 
 Default value: `[]`
 
@@ -1845,7 +1854,7 @@ Activates (or deactivates, or removes) the connection after configuration
 Uses $networkmanager::activation_tag (the tag of the virtual execs, collected by networkmanager::reload) and
 $networkmanager::connections_dir (the directory with the keyfiles).
 
-#### `networkmanager::activate_connection(Pattern[/\A\h{8}-(\h{4}-){3}\h{12}\z/] $uuid, String[3] $id, Enum['up', 'down'] $state, Enum['absent', 'present'] $ensure = 'present', Array[Pattern[/\A\h{8}-(\h{4}-){3}\h{12}\z/]] $after = [])`
+#### `networkmanager::activate_connection(Pattern[/\A\h{8}-(\h{4}-){3}\h{12}\z/] $uuid, Networkmanager::Connection_id $id, Enum['up', 'down'] $state, Enum['absent', 'present'] $ensure = 'present', Array[Pattern[/\A\h{8}-(\h{4}-){3}\h{12}\z/]] $after = [])`
 
 Activates (or deactivates, or removes) the connection after configuration
 
@@ -1862,7 +1871,7 @@ uuid of the connection as generated by networkmanager::connection_uuid function 
 
 ##### `id`
 
-Data type: `String[3]`
+Data type: `Networkmanager::Connection_id`
 
 name of the connection (here used for a file name)
 
@@ -2053,12 +2062,16 @@ the id of the connection (for the error message)
 Type: Puppet Language
 
 Returns the keyfile settings with the MAC address of the device, in the section which belongs to the type of the connection.
+The ethernet and the wifi connection are bound to the MAC address (mac-address); a bond and a bridge are virtual
+devices, which can only get a MAC address (ethernet.cloned-mac-address), so that one is written for them.
 The MAC address of a connection type which has no section known to the module is refused, put it
 into the additional_config of the connection instead.
 
 #### `networkmanager::mac_address_settings(String $type, Optional[Stdlib::MAC] $mac_address)`
 
 Returns the keyfile settings with the MAC address of the device, in the section which belongs to the type of the connection.
+The ethernet and the wifi connection are bound to the MAC address (mac-address); a bond and a bridge are virtual
+devices, which can only get a MAC address (ethernet.cloned-mac-address), so that one is written for them.
 The MAC address of a connection type which has no section known to the module is refused, put it
 into the additional_config of the connection instead.
 
@@ -2318,11 +2331,13 @@ the id of the connection (for the error message)
 
 Type: Puppet Language
 
-Validates that the connection has at least one of 'mac address' or 'interface name' supplied
+Validates that the connection has at least one of 'mac address' or 'interface name' supplied. A connection which is
+removed (ensure absent) needs neither, the ones which are supplied are still validated by their data types.
 
-#### `networkmanager::validate_ifc_name_and_mac(String $caller, String $caller_title, Optional[Stdlib::MAC] $interface_mac, Optional[Networkmanager::Interface_name] $interface_name, String $type = 'ethernet')`
+#### `networkmanager::validate_ifc_name_and_mac(String $caller, String $caller_title, Optional[Stdlib::MAC] $interface_mac, Optional[Networkmanager::Interface_name] $interface_name, String $type = 'ethernet', Enum['absent', 'present'] $ensure = 'present')`
 
-Validates that the connection has at least one of 'mac address' or 'interface name' supplied
+Validates that the connection has at least one of 'mac address' or 'interface name' supplied. A connection which is
+removed (ensure absent) needs neither, the ones which are supplied are still validated by their data types.
 
 Returns: `Hash`
 
@@ -2355,6 +2370,12 @@ the connection interface name
 Data type: `String`
 
 the type of the connection (the section of the MAC address depends on it)
+
+##### `ensure`
+
+Data type: `Enum['absent', 'present']`
+
+present or absent, the connection which is absent needs no interface name and no mac address
 
 ## Data types
 

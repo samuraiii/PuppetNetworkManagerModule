@@ -64,7 +64,7 @@ The module supports both Puppet and [OpenVox](https://voxpupuli.org/openvox/), t
 ### What networkmanager module affects
 
 * The NetworkManager package, whose name is chosen by the OS family (Debian, RedHat, Arch Linux and Gentoo families are supported).
-* The `NetworkManager` and `NetworkManager-wait-online` services (running and enabled, `Service['NetworkManager']` and `Service['NetworkManager-wait-online']`). `wait_online => false` stops and disables the wait-online unit on systemd hosts and leaves the service manager of other hosts alone.
+* The `NetworkManager` and `NetworkManager-wait-online` services (running and enabled, `Service['NetworkManager']` and `Service['NetworkManager-wait-online']`). The wait-online unit exists only with systemd (the `service_provider` fact of stdlib): `wait_online` starts and enables it (`true`) or stops and disables it (`false`) there, on other service managers (OpenRC, ...) and on hosts without the fact it is not managed.
 * `/etc/NetworkManager/NetworkManager.conf`, which is fully managed (plugins, `no-auto-default`, `unmanaged-devices` and your own `additional_config`) by the `networkmanager_keyfile` resource.
   The `unmanaged_devices` are MAC addresses or interface names (up to 15 printable ASCII characters, globs like `docker*` are allowed, `/`, `\`, `:` and `;` are not) and the `plugins` are lowercase plugin names like `keyfile` or `ifcfg-rh`.
 * `/etc/NetworkManager/system-connections/`, which holds one `<id>.nmconnection` keyfile (mode `0600`, a `networkmanager_keyfile` resource) per connection. The directory can be changed by `connections_dir`. With `erase_unmanaged_keyfiles => true` (`false` by default, nothing is removed then) every `*.nmconnection` file in that directory which is not managed by Puppet is deleted (other files are left alone) (by the `networkmanager_keyfile_dir` resource).
@@ -73,7 +73,7 @@ The module supports both Puppet and [OpenVox](https://voxpupuli.org/openvox/), t
 
 ### Setup Requirements
 
-* Puppet `>= 4.9.2 < 9.0.0` or [OpenVox](https://voxpupuli.org/openvox/) `>= 7.0.0 < 9.0.0` (the community fork of Puppet by Vox Pupuli, tested in the CI as well).
+* Puppet `>= 6.0.0 < 9.0.0` or [OpenVox](https://voxpupuli.org/openvox/) `>= 7.0.0 < 9.0.0` (the community fork of Puppet by Vox Pupuli, tested in the CI as well).
 * The `puppetlabs/stdlib` module `>= 5.2.0 < 11.0.0` (required: the module uses its IP address and MAC types and the `deep_merge` function).
 * On the managed node: `nmcli` (installed with NetworkManager), `/usr/bin/gdbus` (from GLib, present on all supported systems; the path is not configurable) and, for `state => 'down'` with NetworkManager without that support, `ip` (iproute2).
 
@@ -156,7 +156,7 @@ networkmanager::ifc::bond::slave {
 The classes, defined types, resource types, functions and data types with their parameters are described in [REFERENCE.md](REFERENCE.md), which is generated from the comments of the code by `bundle exec puppet strings generate --format markdown --out REFERENCE.md` (Ruby 3.1 or newer), do not edit it by hand.
 
 ## Connection id length
-The `connection.id` parameter is limited by default to 15 characters, because it is by default used also as the interface name.
+The `connection.id` parameter has 1 to 15 characters by default (`$networkmanager::min_length_of_connection_id` and `$networkmanager::max_length_of_connection_id`), because it is by default used also as the interface name.
 The interface name has an upper limit of 15 characters set by the kernel.
 You can override this limit by setting `$networkmanager::max_length_of_connection_id` to the value you like, but then you need to set, where applicable, the `connection.interface-name` to something that is less than 16 characters long.
 
@@ -166,7 +166,7 @@ The `id` is also the name of the keyfile, so it may contain only printable ASCII
 For a connection with the `auto` or `dhcp` IPv6 method the DHCP DUID (`ipv6.dhcp-duid`) is written to the keyfile (for a present connection in the state `up` and `down` alike, it is the identity of the profile), because the default DUID of NetworkManager is random and would break getting the right lease from the DHCP server. The DUID is the only way a DHCPv6 server can tie an address to a host (the IPv4 DHCP needs the MAC address of the host the same way), so it is built from the MAC address, the same one the IPv4 DHCP server knows.
 The `ipv6_dhcp_duid` of the connection is used, and when it is not set the `ipv6_dhcp_duid_default` of the `networkmanager` class (`'auto'` by default):
 
-* `'auto'`: the DUID is built from the `mac_address` of the connection and the `duid_prefix` of the class (`00:03:00:01:<mac>`), the connection then needs the `mac_address` (also a bond, a bridge and a vlan: give it the MAC address the host has on that interface, a vlan has the MAC address of its parent unless you changed it; it is used only to build the DUID, it is not written to the keyfile). The same MAC address on the parent and on its vlans gives them the same DUID, give a vlan a literal `ipv6_dhcp_duid` when its DHCP server must tell them apart,
+* `'auto'`: the DUID is built from the `mac_address` of the connection and the `duid_prefix` of the class (`00:03:00:01:<mac>`), the connection then needs the `mac_address` (also a bond, a bridge and a vlan: give it the MAC address the host has on that interface, a vlan has the MAC address of its parent unless you changed it; a bond and a bridge also get it as their MAC address, the `ethernet.cloned-mac-address`, a vlan uses it only to build the DUID). The same MAC address on the parent and on its vlans gives them the same DUID, give a vlan a literal `ipv6_dhcp_duid` when its DHCP server must tell them apart,
 * `'unset'`: nothing is written and NetworkManager uses its own default (`lease`), no `mac_address` is needed,
 * `ll`, `llt`, `lease`, `stable-ll`, `stable-llt`, `stable-uuid`: the NetworkManager keyword is written as it is,
 * a literal DUID (`00:03:00:01:aa:bb:cc:dd:ee:ff`): written as it is (the same DUID on all the connections that use the default).
@@ -223,7 +223,7 @@ The module aims primarily at servers, where the identifiers and the addresses of
 * the DHCP DUID is derived from the MAC address by default (see [IPv6 DHCP DUID](#ipv6-dhcp-duid)),
 * the UUIDs of the connections are derived from the certname of the node and the `id` of the connection; set `networkmanager::uuid_seed` to derive them from another text, eg. to keep them when the node gets another certname (a reinstall) or to give the same connection the same UUID on several nodes. Changing the seed changes the UUIDs of all the connections.
 
-All of them can be changed: set `ipv6_addr_gen_mode` (0 to 3, see `nmcli` `ipv6.addr-gen-mode`) and `ipv6_privacy` (-1 to 2) on the connection, `ipv6_dhcp_duid` or the `ipv6_dhcp_duid_default` of the class, or override anything in the `additional_config` of the connection (it wins over every other parameter).
+All of them can be changed: set `ipv6_addr_gen_mode` (0 to 3, see `nmcli` `ipv6.addr-gen-mode`) and `ipv6_privacy` (-1 to 2) on the connection, `ipv6_dhcp_duid` or the `ipv6_dhcp_duid_default` of the class, or override the other settings in the `additional_config` of the connection (it wins over every other parameter, except for the `connection.uuid`, `id`, `interface-name`, `master` and `slave-type`, which the module sets from its parameters and relies on: use the parameters `id`, `interface_name`, `master` and `slave_type`).
 
 ## Order and state of the connections
 * The subclasses of `networkmanager` are contained: a relationship to `Class['networkmanager']` means after the package, the configuration and the services.
@@ -239,9 +239,9 @@ The module fails on an operating system family it has no package name for (Debia
 * **Retries of the connections that cannot come up.** The `activate connection always` exec tries to activate the connections that are `up` in every run, and each try does a global `nmcli connection reload` and waits for the result. A connection that can never come up (no carrier, a missing parent device, an interface that is not there yet) is retried, and slows down, every run. Use `state => 'down'`, `ensure => 'absent'` or `ipv4_may_fail`/`ipv6_may_fail` for such connections. A bounded wait for the activation is a TODO.
 * **Unknown devices of `networkmanager_link`.** The state of a device that does not exist (a typo in the `interface_name`, an interface that is not renamed yet, no device with the `mac_address`) is reported as `down`, so a `down` link is in sync and a `managed` one is in sync too. The activation of the connection fails later instead. Check the interface names, the module does not.
 * **The master or the parent given by the id is converted to a UUID without a check** that a connection with that id exists: an interface name or a typo gives a valid but unknown UUID and NetworkManager fails at the activation.
-* **A setting with an empty string value is not written** (the `additional_config` of the connections too), it is taken as not set. `puppet resource networkmanager_keyfile` lists only the default `connections_dir`, and a name in `secret_keys` censors every setting that contains it.
+* **A setting with an empty string value is written as an empty value** (`key=`, the `additional_config` of the connections too), only an unset (`undef`) one is not written. `puppet resource networkmanager_keyfile` lists only the default `connections_dir`, and the names in `secret_keys` are matched exactly (case insensitive), not as a part of a setting name.
 * **Raw `additional_config` is written as it is.** The names of the sections and the settings are validated against the injection of the keyfile syntax, but a setting NetworkManager does not know is silently ignored by it.
-* **The `mac_address` of a bond, a bridge or a vlan** is used only to build the DUID, it is not written to the keyfile. The compilation fails without it for the IPv6 methods `auto` and `dhcp` (unless the DUID is `unset` or a literal), on purpose: a DUID nobody chose is a random one.
+* **The `mac_address` of a vlan** is used only to build the DUID, it is not written to the keyfile; the one of a bond or a bridge is written as the `ethernet.cloned-mac-address` too (the MAC address of the virtual device). The compilation fails without it for the IPv6 methods `auto` and `dhcp` (unless the DUID is `unset` or a literal), on purpose: a DUID nobody chose is a random one.
 
 ## Development
 The tests are in `spec/` and the same checks as in the GitHub Actions workflow (`.github/workflows/ci.yml`) can be run locally:

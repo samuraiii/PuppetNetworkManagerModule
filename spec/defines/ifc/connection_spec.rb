@@ -189,6 +189,21 @@ describe 'networkmanager::ifc::connection' do
     it { is_expected.to compile.and_raise_error(%r{master 'ens192' of the connection 'ens192' is the connection itself}) }
   end
 
+  context 'with a one character id' do
+    let(:title) { 'a' }
+    let(:params) { base.merge(interface_name: 'eth0') }
+
+    it { is_expected.to compile.with_all_deps }
+  end
+
+  context 'with the min_length_of_connection_id 3 and a shorter id' do
+    let(:title) { 'ab' }
+    let(:params) { base.merge(interface_name: 'eth0') }
+    let(:pre_condition) { 'class { "networkmanager": min_length_of_connection_id => 3 }' }
+
+    it { is_expected.to compile.and_raise_error(%r{length from 3 to 15}) }
+  end
+
   context 'with the interface name' do
     let(:title) { 'ens192' }
     let(:params) { base.merge(interface_name: 'eth7') }

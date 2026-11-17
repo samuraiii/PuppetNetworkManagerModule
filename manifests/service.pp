@@ -2,27 +2,26 @@
 # Not to be used by user
 #
 # @param wait_online
-#   Taken from `$networkmanager::wait_online`, `false` stops and disables the wait-online unit on systemd hosts, it
-#   leaves the service manager of other hosts alone
+#   Taken from `$networkmanager::wait_online`. The wait-online unit exists only with systemd (the `service_provider` fact of
+#   stdlib is `systemd`): `true` starts and enables it, `false` stops and disables it there, other service managers
+#   (OpenRC, ...) and hosts without the fact have no such unit and it is not managed
 class networkmanager::service (
   Boolean $wait_online = $networkmanager::wait_online,
 ) {
   assert_private()
 
-  # the wait-online unit is switched off only where systemd has it, a service manager without the unit (OpenRC) has
-  # nothing to switch off and could refuse to manage the unknown service
-  if $wait_online {
+  # managing a unit which does not exist could fail the run (OpenRC), so the wait-online unit is left alone elsewhere
+  if 'systemd' == $facts['service_provider'] {
+    $wait_ensure = $wait_online ? {
+      true    => running,
+      default => stopped,
+    }
     service { 'NetworkManager-wait-online':
-      ensure => running,
-      enable => true,
+      ensure => $wait_ensure,
+      enable => $wait_online,
     }
   }
-  elsif 'systemd' == $facts['service_provider'] {
-    service { 'NetworkManager-wait-online':
-      ensure => stopped,
-      enable => false,
-    }
-  }
+
   service { 'NetworkManager':
     ensure => running,
     enable => true,

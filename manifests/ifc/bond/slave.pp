@@ -20,7 +20,7 @@
 #   $additional_config hash and it will be merged with other parameters.
 #   The additional_config has the HIGHEST priority when merged!
 #   ie: it will override the defined values of the connection in case of the conflict
-#   A setting with an empty string value ('') is not written, like an unset one; the connection.id, uuid, interface-name, master and slave-type can not be overridden
+#   A setting with an empty string value ('') is written as an empty value (key=), only an unset (undef) one is not written; the connection.id, uuid, interface-name, master and slave-type can not be overridden
 define networkmanager::ifc::bond::slave (
   String                    $master,
   Enum['absent', 'present'] $ensure = present,
@@ -41,23 +41,23 @@ define networkmanager::ifc::bond::slave (
     $title,
     $mac_address,
     $interface_name,
-    $type
+    $type,
+    $ensure
   )
   networkmanager::forbid_uuid_override($additional_config, $id)
 
-  $master_uuid = networkmanager::connection_uuid($master)
+  # the master and the type of it (a master which is the connection itself is refused)
+  $port_settings = networkmanager::port_settings($master, 'bond', $id)
 
   $connection_config = {
     connection => {
-      id         => $id,
-      uuid       => $uuid,
-      type       => $type,
-      master     => $master_uuid,
-      slave-type => 'bond',
-    },
+      id   => $id,
+      uuid => $uuid,
+      type => $type,
+    } + $port_settings,
   }
 
-  $after = [$master_uuid]
+  $after = [$port_settings['master']]
 
   $keyfile_contents = deep_merge($int_mac_config, $connection_config, $additional_config)
 

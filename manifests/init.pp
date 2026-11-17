@@ -20,11 +20,13 @@
 # @param unmanaged_devices
 #   Array of the devices you want the NetworkManager to ignore (as name or mac address, you can mix it)
 # @param wait_online
-#   enable the NetworkManager-wait-online service DEFAULT: true, false stops and disables it on systemd hosts and leaves other service managers alone
+#   enable the NetworkManager-wait-online service DEFAULT: true. Only on systemd hosts (the service_provider fact of stdlib), the unit does not exist elsewhere and is not managed
 # @param use_internal_resolv_conf
 #   use the networkmanager bundled resolver
 # @param plugins
 #   should we use different plugins to get network config data (NOT RECOMMENDED TO CHANGE)
+# @param min_length_of_connection_id
+#   Shortest name of the connection allowed (the connection $id is the name of its keyfile). DEFAULT: 1 character
 # @param max_length_of_connection_id
 #   Limit the name of the connection to this length. DEFAULT: 15 characters
 #   to comply with kernel interface name limits since the connection $id is used as default
@@ -41,8 +43,7 @@
 #   `show_diff` setting of Puppet is enabled as it is for the file resource) DEFAULT: true
 # @param secret_keys
 #   names of the settings whose values are censored in the diffs in addition to the built in ones (passwords, psk, wep keys,
-#   private keys, everything in the vpn-secrets section, ...) DEFAULT: []. A name matches every setting that contains it (case insensitive),
-#   so `key` censors all the settings with `key` in the name
+#   private keys, everything in the vpn-secrets section, ...) DEFAULT: []. The names are matched exactly (case insensitive)
 # @param additional_config
 #   Configuration hash for the NetworkManager.conf, it is able to override default module config in case of conflict!
 # @param uuid_seed
@@ -59,7 +60,8 @@ class networkmanager (
   Boolean                                  $wait_online = true,
   Optional[Variant[Boolean, Enum['stub']]] $use_internal_resolv_conf = undef,
   Array[Networkmanager::Plugin]            $plugins = ['keyfile'],
-  Integer[3]                               $max_length_of_connection_id = 15,
+  Integer[1]                               $min_length_of_connection_id = 1,
+  Integer[1]                               $max_length_of_connection_id = 15,
   Pattern[/\A\h{2}(:\h{2}){3}\z/]          $duid_prefix = '00:03:00:01',
   Networkmanager::DHCP_DUID                $ipv6_dhcp_duid_default = 'auto',
   Boolean                                  $show_diff = true,
@@ -77,6 +79,9 @@ class networkmanager (
   }
   # the UUIDs of the connections are derived from this, the node name by default
   $sys_id = $uuid_seed ? { undef => $node_id, default => $uuid_seed }
+  if $min_length_of_connection_id > $max_length_of_connection_id {
+    fail("The min_length_of_connection_id (${min_length_of_connection_id}) is longer than the max_length_of_connection_id (${max_length_of_connection_id})")
+  }
   $duid_prefix_d = $duid_prefix.downcase
   # the tag of the virtual activation execs of this node, they are collected by networkmanager::reload
   $activation_tag = "nmactivate-2022b07${node_id}"
