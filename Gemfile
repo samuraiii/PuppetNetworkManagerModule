@@ -12,7 +12,7 @@ openvox_plain = openvox_version.match?(%r{\b(8|9)\b})
 group :test do
   gem 'facterdb', require: false
   # json 3 removed JSON.create_id=, which facterdb (rspec-puppet-facts) still calls
-  gem 'json', '< 3', require: false
+  gem 'json', '< 4', require: false
   gem 'metadata-json-lint', require: false
   if !openvox_version.empty?
     gem 'openvox', openvox_version, require: false
